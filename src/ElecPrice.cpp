@@ -32,7 +32,7 @@ double last_small = 100; // Assign any absurdly high value
 int big_idx;
 int small_idx;
 int low_range_hour[24];
-int idx = -1;
+int idx = 0;
 double delta;
 double small_offset;
 int cnt;
@@ -48,15 +48,17 @@ void handle_sensor(void);
 void setup()
 {
     last_read = millis(); //Give it an initial value
-    pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);
-    attachInterrupt(KW_SENSOR_PIN,handle_sensor,RISING);
+    pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                 //Setup pinmode for LDR pin
+    attachInterrupt(KW_SENSOR_PIN,handle_sensor,RISING);    //Attach interrup that will be called when rising
     
-    // Particle.variable("Delta", delta);
-    //Particle.variable("Delta_offset", small_offset);
+    /* Publish some variable
+     * so we can follow the sensor output online
+    */
     Particle.variable("Biggest", last_big);
     Particle.variable("Smallest", last_small);
     Particle.variable("Power", calc_power);
     
+    // Request data on power prices for the next 48 hours
     get_data(Time.day());
     // Subscribe to the integration response event
     Particle.subscribe("prices", myHandler, MY_DEVICES);
@@ -72,7 +74,7 @@ void handle_sensor(void)
     {
         calc_power = WATT_CONVERSION_CONSTANT / delta;
         last_read = current_reading;
-        printer = true;
+        printer = true; // Just a debuging flag
     }
 }
 
@@ -80,16 +82,24 @@ void myHandler(const char *event, const char *data)
 {
     populate = false;
     rec_cnt++;
+
+    /* When transmission are greater than 512 bytes, it will be split into 512
+     * byte parts. The final transmission part should therefore be less than 512.
+     * Save transmission size into variable so we can act on it
+    */
     int transmission_size = strlen(data);
+    
+    // "eventname/<transmission part no>"
     char event_str[12];
     strcpy(event_str,event);
-
-    //Serial.printf("%s size: %d",event,transmission_size);
-    //Serial.printf("%s\n\n",data);
-
+    //Serial.printf("%s\n",event_str);
+    //Serial.printf("%s\n",data);
     // Token used for strtok()
     char *token = NULL;
+    // Extract the numbered part of eventname and use it for indexing "rec_data"
     strcpy(rec_data[atoi(strtok(event_str,"prices/"))],data);
+    
+    // If transmission size is less than 512 = last transmission received
     if (transmission_size < 512)
     {
         populate = true;
@@ -99,14 +109,15 @@ void myHandler(const char *event, const char *data)
     {
         // Mainly for debugging - Display what has been received
         // Serial.printf("%s\n\n",temp);
+
+        // Concatenate all transmission into one string
         for (int i = 0; i <= rec_cnt; i++)
         {
             strcat(temp,rec_data[i]);
-            //Serial.printf("%s\n",temp);
         }
-        // Tokenize the string
+        //Serial.printf("%s\n\n",temp);
+        // Tokenize the string. i.e. split the string so we can get to the data
         token = strtok(temp, ",!");
-
         for (int i = 0; i < range; i++)
         {
             // Save hour and cost in differen containers
@@ -114,26 +125,23 @@ void myHandler(const char *event, const char *data)
             token = strtok(NULL, ",!");
             cost[i] = atof(token) / 1000;
             
-            if((token = strtok(NULL, ",!")) == NULL)
+            if((token = strtok(NULL, ",!")) == NULL) // Received data count is less than 48.
             {
-                range = i;
-                //Serial.printf("Size of range: %d\n",range);
-                break;
+                range = i;  // Update range, such that the rest of program flow is aware of size
+                break;      // Break the while loop
             }
         }
-        //free(temp);
     }
 }
 
 void myPriceHandler(const char *event, const char *data)
 {
-    //fetch_price = true;
     get_data(Time.day());
 }
 
 void loop()
 {
-    if (printer)
+    if (printer) // Debugging flag set in interrupt handler
     {
         Serial.printf("Light: %d\n",calc_power);
         printer = false;
@@ -153,7 +161,7 @@ void loop()
         {
             data += String::format("%02d to %02d, ",start_stop[z][0],start_stop[z][1]);
         }
-        // Trigger the integration
+        // Publish the cheap hours
         Particle.publish("Low price hours", data, PRIVATE);
         work = false;
     }
@@ -174,10 +182,8 @@ void calc_low(void)
         // Find the lowest price in range
         if (cost[i] < last_small)
         {
-            // Serial.printf("Smallest before change[idx] %d:\t%f,\t cost: %f\n",small_idx,last_small,cost[i]);
             small_idx = i;
             last_small = cost[i];
-            // Serial.printf("Current smallest[idx] %d:\t%f\n",small_idx,last_small);
         }
     }
     // Calculate delta
@@ -185,15 +191,17 @@ void calc_low(void)
 
     // Define low price area
     small_offset = last_small + delta * DELTA_OFFSET;
-
+    //Serial.printf("small_offset: %f\n",small_offset);
+    
     // Find hours of day at which price is within the defined low price point
-    for (int i = 0; i < range; i++)
+    for (int i = 0; i <= range; i++)
     {
+        //Serial.printf("cost[%d]: %f\tcost_hour[%d]: %d\n",i,cost[i],i,cost_hour[i]);
         if (cost[i] < small_offset)
         {
-            idx++;
             low_range_hour[idx] = cost_hour[i];
-            // Serial.printf("low_range_hour: %d\tidx: %d\n",low_range_hour[i],idx);
+            //Serial.printf("low_range_hour[%d]: %d\tcost_hour[%d]: %d\n",idx,low_range_hour[idx],i,cost_hour[i]);
+            idx++;
         }
     }
 
@@ -203,55 +211,31 @@ void calc_low(void)
     Serial.printf("Highest price of the day: %f\n", last_big);
     Serial.printf("Lowest price of the day: %f\n", last_small);
     Serial.printf("Hours of the day where electricity is within accepted range:\n");
-    
+    Serial.printf("cnt: %d\n",cnt);
     int i = 0;
     if (idx > 0)
     {
         while (i <= idx)
         {
-            //Serial.printf("Step one %d\n",low_range_hour[i]);
             start_stop[cnt][0] = low_range_hour[i];
-            //Serial.printf("Step two %d\n",start_stop[cnt][0]);
-            while (low_range_hour[i] == low_range_hour[i + 1] - 1)
+
+            while (low_range_hour[i] == low_range_hour[i + 1] - 1) // Hour only increased by 1. I.e. coherant
             {
                 i++;
             }
-            //Serial.printf("Step three %d\n",start_stop[cnt][1]);
+            
             start_stop[cnt][1] = low_range_hour[i];
-            //Serial.printf("Step four %d\n",start_stop[cnt][1]);
+            
             cnt++;
             i++;
         }
         cnt--;
     }
-    for (int z = 0; z <= cnt; z++)
+    for (int z = 0; z < cnt; z++)
     {
         Serial.printf("%02d to %02d\n",start_stop[z][0],start_stop[z][1]);
     }
 
-    /*
-    if (idx > 0)
-    {
-        start_stop[0][0] = low_range_hour[0];
-        in_line = true;
-    }
-    for (int i = 0; i <= idx; i++)
-    {
-        if (i > 0)
-        {
-            if (low_range_hour[i] == low_range_hour[i - 1] + 1)
-            {
-                ;
-            }
-            else
-            {
-                start_stop[cnt][1] = low_range_hour[i - 1];
-            }
-        }
-
-        Serial.printf("Hour: %d\tPrice: %f\n", low_range_hour[i], cost[low_range_hour[i]]);
-    }
-    */
     work = true;
 }
 
