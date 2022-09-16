@@ -29,9 +29,6 @@ bool populate = false;  // Entire transmission received flag
 bool work = false;
 bool printer = false;
 
-// Variables used for finding highest and lowest price
-int big_idx;
-int small_idx;
 int low_range_hour[24];
 
 int cnt;
@@ -90,10 +87,11 @@ void setup()
 
 void callback(char* topic, byte* payload, unsigned int length) 
 {
+    /*
     char p[length + 1];
     memcpy(p, payload, length);
     p[length] = NULL;
-
+    */
     if (!strcmp(topic,"power/prices"))
     {
         work = true;
@@ -233,6 +231,7 @@ void reconnect(void)
 void calc_low(void)
 {
     int idx = 0;
+
     double delta;
     double small_offset;
     double last_big = 0;
@@ -243,13 +242,11 @@ void calc_low(void)
         // Find the highest price in range
         if (cost[i] > last_big)
         {
-            big_idx = i;
             last_big = cost[i];
         }
         // Find the lowest price in range
         if (cost[i] < last_small)
         {
-            small_idx = i;
             last_small = cost[i];
         }
     }

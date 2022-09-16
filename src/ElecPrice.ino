@@ -19,9 +19,6 @@ bool populate = false;  // Entire transmission received flag
 bool work = false;
 bool printer = false;
 
-// Variables used for finding highest and lowest price
-int big_idx;
-int small_idx;
 int low_range_hour[24];
 
 int cnt;
@@ -80,10 +77,11 @@ void setup()
 
 void callback(char* topic, byte* payload, unsigned int length) 
 {
+    /*
     char p[length + 1];
     memcpy(p, payload, length);
     p[length] = NULL;
-
+    */
     if (!strcmp(topic,"power/prices"))
     {
         work = true;
@@ -209,7 +207,7 @@ void loop()
         client.publish("power",values);
         transmit_value = false;
     }
-    // Wait 2 second
+    // Wait 2 seconds
     delay(2000);
 }
 
@@ -217,12 +215,14 @@ void reconnect(void)
 {
     client.connect("sparkclient_" + String(Time.now()),"mqtt","mqtt");
 }
-/** Purpose of the function is to identify the hours at which the highest and lowest cost are.
+
+/** @brief The purpose of the function is to identify the hours at which the highest and lowest cost are.
  *  Furthermore neighbouring low cost hour are identified and saved in an array for easy presentation
 */
 void calc_low(void)
 {
     int idx = 0;
+
     double delta;
     double small_offset;
     double last_big = 0;
@@ -233,13 +233,11 @@ void calc_low(void)
         // Find the highest price in range
         if (cost[i] > last_big)
         {
-            big_idx = i;
             last_big = cost[i];
         }
         // Find the lowest price in range
         if (cost[i] < last_small)
         {
-            small_idx = i;
             last_small = cost[i];
         }
     }
@@ -295,6 +293,8 @@ void calc_low(void)
     work = true;
 }
 
+/** @brief Puplishes a formatted command string to Particle cloud the fire off a webhook
+ */
 void get_data(int day)
 {
     rec_cnt = 0;
