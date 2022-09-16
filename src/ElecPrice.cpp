@@ -15,6 +15,7 @@ void loop();
 #define DELTA_OFFSET 0.3
 #define KW_SENSOR_PIN D6
 #define WATT_CONVERSION_CONSTANT 3600000
+#define HOST "192.168.0.103"
 
 double cost[48];
 int cost_hour[48];
@@ -48,6 +49,7 @@ bool transmit_value = false;
 void calc_low(void);
 void get_data(int day);
 void handle_sensor(void);
+void reconnect(void);
 
 void callback(char* topic, byte* payload, unsigned int length);
 MQTT client("192.168.0.103", 1883, 512, 30, callback);
@@ -58,7 +60,7 @@ void setup()
     pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                 //Setup pinmode for LDR pin
     attachInterrupt(KW_SENSOR_PIN,handle_sensor,RISING);    //Attach interrup that will be called when rising
     
-    /* Publish some variable
+    /* Publish some variables to particle web,
      * so we can follow the sensor output online
     */
     Particle.variable("Biggest", last_big);
@@ -81,16 +83,25 @@ void setup()
     {
         client.publish("power/get","hello world");
         client.subscribe("power/get");
+        client.subscribe("power/prices");
     }
 }
 
 void callback(char* topic, byte* payload, unsigned int length) 
 {
-    //char p[length + 1];
-    //memcpy(p, payload, length);
-    //p[length] = NULL;
+    char p[length + 1];
+    memcpy(p, payload, length);
+    p[length] = NULL;
 
-    transmit_value = true;
+    if (!strcmp(topic,"power/prices"))
+    {
+        work = true;
+    }
+    else if (!strcmp(topic,"power/get"))
+    {
+        transmit_value = true;
+    }
+    
 }
 
 void handle_sensor(void)
@@ -169,6 +180,10 @@ void myPriceHandler(const char *event, const char *data)
 
 void loop()
 {
+    if (!client.isConnected())
+    {
+        reconnect();
+    }
     if (client.isConnected()) 
     {
         client.loop();
@@ -195,8 +210,10 @@ void loop()
         {
             data += String::format("%02d to %02d, ",start_stop[z][0],start_stop[z][1]);
         }
-        // Publish the cheap hours
+        // Publish the cheap hours to cloud
         Particle.publish("Low price hours", data, PRIVATE);
+        // Publish cheap hour to MQTT
+        client.publish("prices", data);
         work = false;
     }
 
@@ -204,7 +221,7 @@ void loop()
     {
         Serial.printf("Received power/get\n");
         char values[16];
-        sprintf(values,"%d W", calc_power);
+        sprintf(values,"%d", calc_power);
         client.publish("power",values);
         transmit_value = false;
     }
@@ -212,6 +229,10 @@ void loop()
     delay(2000);
 }
 
+void reconnect(void)
+{
+    client.connect("sparkclient_" + String(Time.now()),"mqtt","mqtt");
+}
 void calc_low(void)
 {
     for (int i = 0; i < range; i++)
