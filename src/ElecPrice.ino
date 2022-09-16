@@ -48,7 +48,7 @@ void setup()
     pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                 //Setup pinmode for LDR pin
     attachInterrupt(KW_SENSOR_PIN,handle_sensor,RISING);    //Attach interrup that will be called when rising
     
-    /* Publish some variable
+    /* Publish some variables to particle web,
      * so we can follow the sensor output online
     */
     Particle.variable("Biggest", last_big);
