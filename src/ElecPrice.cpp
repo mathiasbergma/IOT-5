@@ -157,7 +157,7 @@ void loop()
     {
         // Do some meaningfull work with the collected data
         String data = "Cheap(ish) hours of the day: ";
-        for (int z = 0; z <= cnt; z++)
+        for (int z = 0; z < cnt; z++)
         {
             data += String::format("%02d to %02d, ",start_stop[z][0],start_stop[z][1]);
         }
@@ -224,7 +224,7 @@ void calc_low(void)
                 i++;
             }
             
-            start_stop[cnt][1] = low_range_hour[i];
+            start_stop[cnt][1] = low_range_hour[i]+1;
             
             cnt++;
             i++;

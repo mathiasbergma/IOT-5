@@ -33,11 +33,11 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  14 .debug_macro  0003740c  00000000  00000000  0018ef47  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 15 .debug_line   0003b712  00000000  00000000  001c6353  2**0
+ 15 .debug_line   0003b715  00000000  00000000  001c6353  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 16 .debug_str    001346a6  00000000  00000000  00201a65  2**0
+ 16 .debug_str    001346a6  00000000  00000000  00201a68  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_frame  000080e8  00000000  00000000  0033610c  2**2
+ 17 .debug_frame  000080e8  00000000  00000000  00336110  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -605,9 +605,9 @@ void calc_low(void)
    b4358:	f7ff ff48 	bl	b41ec <_ZN5Print6printfEPKcz>
     int i = 0;
     if (idx > 0)
-   b435c:	f8d8 6000 	ldr.w	r6, [r8]
-   b4360:	42a6      	cmp	r6, r4
-   b4362:	dd1b      	ble.n	b439c <_Z8calc_lowv+0x194>
+   b435c:	f8d8 7000 	ldr.w	r7, [r8]
+   b4360:	42a7      	cmp	r7, r4
+   b4362:	dd1c      	ble.n	b439e <_Z8calc_lowv+0x196>
    b4364:	6829      	ldr	r1, [r5, #0]
    b4366:	4a2a      	ldr	r2, [pc, #168]	; (b4410 <_Z8calc_lowv+0x208>)
     {
@@ -621,67 +621,68 @@ void calc_low(void)
             start_stop[cnt][0] = low_range_hour[i];
    b4372:	f85c 0023 	ldr.w	r0, [ip, r3, lsl #2]
    b4376:	6010      	str	r0, [r2, #0]
-   b4378:	eb0c 0483 	add.w	r4, ip, r3, lsl #2
+   b4378:	eb0c 0683 	add.w	r6, ip, r3, lsl #2
 
             while (low_range_hour[i] == low_range_hour[i + 1] - 1) // Hour only increased by 1. I.e. coherant
-   b437c:	6827      	ldr	r7, [r4, #0]
-   b437e:	f854 0f04 	ldr.w	r0, [r4, #4]!
-   b4382:	3801      	subs	r0, #1
-   b4384:	4287      	cmp	r7, r0
+   b437c:	6830      	ldr	r0, [r6, #0]
+   b437e:	f856 4f04 	ldr.w	r4, [r6, #4]!
+   b4382:	3c01      	subs	r4, #1
+   b4384:	42a0      	cmp	r0, r4
    b4386:	f103 0301 	add.w	r3, r3, #1
    b438a:	d0f7      	beq.n	b437c <_Z8calc_lowv+0x174>
-        while (i <= idx)
-   b438c:	429e      	cmp	r6, r3
             {
                 i++;
             }
             
-            start_stop[cnt][1] = low_range_hour[i];
-   b438e:	6057      	str	r7, [r2, #4]
+            start_stop[cnt][1] = low_range_hour[i]+1;
+   b438c:	3001      	adds	r0, #1
+        while (i <= idx)
+   b438e:	429f      	cmp	r7, r3
+            start_stop[cnt][1] = low_range_hour[i]+1;
+   b4390:	6050      	str	r0, [r2, #4]
             
             cnt++;
-   b4390:	f101 0001 	add.w	r0, r1, #1
+   b4392:	f101 0001 	add.w	r0, r1, #1
         while (i <= idx)
-   b4394:	f102 0208 	add.w	r2, r2, #8
-   b4398:	da11      	bge.n	b43be <_Z8calc_lowv+0x1b6>
+   b4396:	f102 0208 	add.w	r2, r2, #8
+   b439a:	da11      	bge.n	b43c0 <_Z8calc_lowv+0x1b8>
             i++;
         }
         cnt--;
-   b439a:	6029      	str	r1, [r5, #0]
-   b439c:	4c1c      	ldr	r4, [pc, #112]	; (b4410 <_Z8calc_lowv+0x208>)
+   b439c:	6029      	str	r1, [r5, #0]
+   b439e:	4c1c      	ldr	r4, [pc, #112]	; (b4410 <_Z8calc_lowv+0x208>)
     }
     for (int z = 0; z < cnt; z++)
     {
         Serial.printf("%02d to %02d\n",start_stop[z][0],start_stop[z][1]);
-   b439e:	4f1d      	ldr	r7, [pc, #116]	; (b4414 <_Z8calc_lowv+0x20c>)
+   b43a0:	4f1c      	ldr	r7, [pc, #112]	; (b4414 <_Z8calc_lowv+0x20c>)
             cnt++;
-   b43a0:	2600      	movs	r6, #0
+   b43a2:	2600      	movs	r6, #0
     for (int z = 0; z < cnt; z++)
-   b43a2:	682b      	ldr	r3, [r5, #0]
-   b43a4:	42b3      	cmp	r3, r6
-   b43a6:	f104 0408 	add.w	r4, r4, #8
-   b43aa:	dd0a      	ble.n	b43c2 <_Z8calc_lowv+0x1ba>
+   b43a4:	682b      	ldr	r3, [r5, #0]
+   b43a6:	42b3      	cmp	r3, r6
+   b43a8:	f104 0408 	add.w	r4, r4, #8
+   b43ac:	dd0a      	ble.n	b43c4 <_Z8calc_lowv+0x1bc>
         Serial.printf("%02d to %02d\n",start_stop[z][0],start_stop[z][1]);
-   b43ac:	f001 fa2a 	bl	b5804 <_Z16_fetch_usbserialv>
-   b43b0:	e954 2302 	ldrd	r2, r3, [r4, #-8]
-   b43b4:	4639      	mov	r1, r7
-   b43b6:	f7ff ff19 	bl	b41ec <_ZN5Print6printfEPKcz>
+   b43ae:	f001 fa29 	bl	b5804 <_Z16_fetch_usbserialv>
+   b43b2:	e954 2302 	ldrd	r2, r3, [r4, #-8]
+   b43b6:	4639      	mov	r1, r7
+   b43b8:	f7ff ff18 	bl	b41ec <_ZN5Print6printfEPKcz>
     for (int z = 0; z < cnt; z++)
-   b43ba:	3601      	adds	r6, #1
-   b43bc:	e7f1      	b.n	b43a2 <_Z8calc_lowv+0x19a>
+   b43bc:	3601      	adds	r6, #1
+   b43be:	e7f1      	b.n	b43a4 <_Z8calc_lowv+0x19c>
             cnt++;
-   b43be:	4601      	mov	r1, r0
-   b43c0:	e7d7      	b.n	b4372 <_Z8calc_lowv+0x16a>
+   b43c0:	4601      	mov	r1, r0
+   b43c2:	e7d6      	b.n	b4372 <_Z8calc_lowv+0x16a>
     }
 
     work = true;
-   b43c2:	4b15      	ldr	r3, [pc, #84]	; (b4418 <_Z8calc_lowv+0x210>)
-   b43c4:	2201      	movs	r2, #1
-   b43c6:	701a      	strb	r2, [r3, #0]
+   b43c4:	4b14      	ldr	r3, [pc, #80]	; (b4418 <_Z8calc_lowv+0x210>)
+   b43c6:	2201      	movs	r2, #1
+   b43c8:	701a      	strb	r2, [r3, #0]
 }
-   b43c8:	b007      	add	sp, #28
-   b43ca:	e8bd 8ff0 	ldmia.w	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, pc}
-   b43ce:	bf00      	nop
+   b43ca:	b007      	add	sp, #28
+   b43cc:	e8bd 8ff0 	ldmia.w	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, pc}
    b43d0:	33333333 	.word	0x33333333
    b43d4:	3fd33333 	.word	0x3fd33333
    b43d8:	2003cd50 	.word	0x2003cd50
@@ -788,19 +789,19 @@ void calc_low(void)
         String data = "Cheap(ish) hours of the day: ";
    b449e:	4921      	ldr	r1, [pc, #132]	; (b4524 <loop+0xd0>)
    b44a0:	4c21      	ldr	r4, [pc, #132]	; (b4528 <loop+0xd4>)
-        for (int z = 0; z <= cnt; z++)
+        for (int z = 0; z < cnt; z++)
    b44a2:	f8df 8094 	ldr.w	r8, [pc, #148]	; b4538 <loop+0xe4>
             data += String::format("%02d to %02d, ",start_stop[z][0],start_stop[z][1]);
    b44a6:	4f21      	ldr	r7, [pc, #132]	; (b452c <loop+0xd8>)
         String data = "Cheap(ish) hours of the day: ";
    b44a8:	a802      	add	r0, sp, #8
    b44aa:	f000 fbd4 	bl	b4c56 <_ZN6StringC1EPK19__FlashStringHelper>
-        for (int z = 0; z <= cnt; z++)
+        for (int z = 0; z < cnt; z++)
    b44ae:	2500      	movs	r5, #0
    b44b0:	f8d8 3000 	ldr.w	r3, [r8]
    b44b4:	42ab      	cmp	r3, r5
    b44b6:	f104 0408 	add.w	r4, r4, #8
-   b44ba:	db0e      	blt.n	b44da <loop+0x86>
+   b44ba:	dd0e      	ble.n	b44da <loop+0x86>
             data += String::format("%02d to %02d, ",start_stop[z][0],start_stop[z][1]);
    b44bc:	e954 2302 	ldrd	r2, r3, [r4, #-8]
    b44c0:	4639      	mov	r1, r7
@@ -817,7 +818,7 @@ void calc_low(void)
    b44cc:	f000 fbee 	bl	b4cac <_ZN6String6concatERKS_>
    b44d0:	a806      	add	r0, sp, #24
    b44d2:	f000 fb75 	bl	b4bc0 <_ZN6StringD1Ev>
-        for (int z = 0; z <= cnt; z++)
+        for (int z = 0; z < cnt; z++)
    b44d6:	3501      	adds	r5, #1
    b44d8:	e7ea      	b.n	b44b0 <loop+0x5c>
 inline particle::Flags<TagT, ValueT>::Flags(Flag<TagT, ValueT> flag) :
