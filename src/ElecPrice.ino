@@ -6,6 +6,7 @@
 #define KW_SENSOR_PIN D6
 #define WATT_CONVERSION_CONSTANT 3600000
 #define HOST "192.168.0.103"
+#define PORT 1883
 
 double cost[48];
 int cost_hour[48];
@@ -19,14 +20,11 @@ bool work = false;
 bool printer = false;
 
 // Variables used for finding highest and lowest price
-double last_big = 0;
-double last_small = 100; // Assign any absurdly high value
 int big_idx;
 int small_idx;
 int low_range_hour[24];
 int idx = 0;
-double delta;
-double small_offset;
+
 int cnt;
 int start_stop[12][2] = {0};
 
@@ -41,8 +39,10 @@ void get_data(int day);
 void handle_sensor(void);
 void reconnect(void);
 
+// Callback function for MQTT transmission
 void callback(char* topic, byte* payload, unsigned int length);
-MQTT client("192.168.0.103", 1883, 512, 30, callback);
+// Create MQTT client
+MQTT client("192.168.0.103", PORT, 512, 30, callback);
 
 void setup()
 {
@@ -53,9 +53,9 @@ void setup()
     /* Publish some variables to particle web,
      * so we can follow the sensor output online
     */
-    Particle.variable("Biggest", last_big);
-    Particle.variable("Smallest", last_small);
-    Particle.variable("Power", calc_power);
+    //Particle.variable("Biggest", last_big);
+    //Particle.variable("Smallest", last_small);
+    //Particle.variable("Power", calc_power);
     
     // Subscribe to the integration response event
     Particle.subscribe("prices", myHandler, MY_DEVICES);
@@ -71,7 +71,9 @@ void setup()
     // publish/subscribe
     if (client.isConnected()) 
     {
+        // Debugging publish
         client.publish("power/get","hello world");
+        // Subscribe to 2 topics
         client.subscribe("power/get");
         client.subscribe("power/prices");
     }
@@ -135,9 +137,6 @@ void myHandler(const char *event, const char *data)
 
     if (populate)
     {
-        // Mainly for debugging - Display what has been received
-        // Serial.printf("%s\n\n",temp);
-
         // Concatenate all transmission into one string
         for (int i = 0; i <= rec_cnt; i++)
         {
@@ -224,6 +223,11 @@ void reconnect(void)
 }
 void calc_low(void)
 {
+    double delta;
+    double small_offset;
+    double last_big = 0;
+    double last_small = 100; // Assign any absurdly high value
+
     for (int i = 0; i < range; i++)
     {
         // Find the highest price in range
@@ -244,7 +248,6 @@ void calc_low(void)
 
     // Define low price area
     small_offset = last_small + delta * DELTA_OFFSET;
-    //Serial.printf("small_offset: %f\n",small_offset);
     
     // Find hours of day at which price is within the defined low price point
     for (int i = 0; i <= range; i++)
