@@ -2,15 +2,16 @@
 //       THIS IS A GENERATED FILE - DO NOT EDIT       //
 /******************************************************/
 
-#include "Particle.h"
 #line 1 "c:/Users/mathi/Desktop/IOT/ElecPrice/src/ElecPrice.ino"
 #include "string.h"
+#include "application.h"
+#include "../lib/MQTT/src/MQTT.h"
 
 void setup();
 void myHandler(const char *event, const char *data);
 void myPriceHandler(const char *event, const char *data);
 void loop();
-#line 3 "c:/Users/mathi/Desktop/IOT/ElecPrice/src/ElecPrice.ino"
+#line 5 "c:/Users/mathi/Desktop/IOT/ElecPrice/src/ElecPrice.ino"
 #define DELTA_OFFSET 0.3
 #define KW_SENSOR_PIN D6
 #define WATT_CONVERSION_CONSTANT 3600000
@@ -41,9 +42,15 @@ int start_stop[12][2] = {0};
 unsigned long last_read;
 int calc_power;
 
+// Send updated meassurement flag
+bool transmit_value = false;
+
 void calc_low(void);
 void get_data(int day);
 void handle_sensor(void);
+
+void callback(char* topic, byte* payload, unsigned int length);
+MQTT client("192.168.0.103", 1883, 512, 30, callback);
 
 void setup()
 {
@@ -58,11 +65,32 @@ void setup()
     Particle.variable("Smallest", last_small);
     Particle.variable("Power", calc_power);
     
-    // Request data on power prices for the next 48 hours
-    get_data(Time.day());
     // Subscribe to the integration response event
     Particle.subscribe("prices", myHandler, MY_DEVICES);
     Particle.subscribe("get_prices", myPriceHandler, MY_DEVICES);
+
+    // Request data on power prices for the next 48 hours
+    get_data(Time.day());
+
+
+    // connect to the server(unique id by Time.now())
+    Serial.printf("Return value: %d",client.connect("sparkclient_" + String(Time.now()),"mqtt","mqtt"));
+
+    // publish/subscribe
+    if (client.isConnected()) 
+    {
+        client.publish("power/get","hello world");
+        client.subscribe("power/get");
+    }
+}
+
+void callback(char* topic, byte* payload, unsigned int length) 
+{
+    //char p[length + 1];
+    //memcpy(p, payload, length);
+    //p[length] = NULL;
+
+    transmit_value = true;
 }
 
 void handle_sensor(void)
@@ -141,6 +169,12 @@ void myPriceHandler(const char *event, const char *data)
 
 void loop()
 {
+    if (client.isConnected()) 
+    {
+        client.loop();
+    }
+
+
     if (printer) // Debugging flag set in interrupt handler
     {
         Serial.printf("Light: %d\n",calc_power);
@@ -165,8 +199,17 @@ void loop()
         Particle.publish("Low price hours", data, PRIVATE);
         work = false;
     }
-    // Wait 10 seconds
-    delay(5000);
+
+    if (transmit_value) // Did we receive a request for updated values
+    {
+        Serial.printf("Received power/get\n");
+        char values[16];
+        sprintf(values,"%d W", calc_power);
+        client.publish("power",values);
+        transmit_value = false;
+    }
+    // Wait 2 second
+    delay(2000);
 }
 
 void calc_low(void)
@@ -211,7 +254,7 @@ void calc_low(void)
     Serial.printf("Highest price of the day: %f\n", last_big);
     Serial.printf("Lowest price of the day: %f\n", last_small);
     Serial.printf("Hours of the day where electricity is within accepted range:\n");
-    Serial.printf("cnt: %d\n",cnt);
+    //Serial.printf("cnt: %d\n",cnt);
     int i = 0;
     if (idx > 0)
     {
