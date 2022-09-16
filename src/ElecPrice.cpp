@@ -16,6 +16,7 @@ void loop();
 #define KW_SENSOR_PIN D6
 #define WATT_CONVERSION_CONSTANT 3600000
 #define HOST "192.168.0.103"
+#define PORT 1883
 
 double cost[48];
 int cost_hour[48];
@@ -29,14 +30,10 @@ bool work = false;
 bool printer = false;
 
 // Variables used for finding highest and lowest price
-double last_big = 0;
-double last_small = 100; // Assign any absurdly high value
 int big_idx;
 int small_idx;
 int low_range_hour[24];
-int idx = 0;
-double delta;
-double small_offset;
+
 int cnt;
 int start_stop[12][2] = {0};
 
@@ -51,8 +48,10 @@ void get_data(int day);
 void handle_sensor(void);
 void reconnect(void);
 
+// Callback function for MQTT transmission
 void callback(char* topic, byte* payload, unsigned int length);
-MQTT client("192.168.0.103", 1883, 512, 30, callback);
+// Create MQTT client
+MQTT client("192.168.0.103", PORT, 512, 30, callback);
 
 void setup()
 {
@@ -63,9 +62,9 @@ void setup()
     /* Publish some variables to particle web,
      * so we can follow the sensor output online
     */
-    Particle.variable("Biggest", last_big);
-    Particle.variable("Smallest", last_small);
-    Particle.variable("Power", calc_power);
+    //Particle.variable("Biggest", last_big);
+    //Particle.variable("Smallest", last_small);
+    //Particle.variable("Power", calc_power);
     
     // Subscribe to the integration response event
     Particle.subscribe("prices", myHandler, MY_DEVICES);
@@ -81,8 +80,10 @@ void setup()
     // publish/subscribe
     if (client.isConnected()) 
     {
+        // Debugging publish
         client.publish("power/get","hello world");
-        client.subscribe("power/get");
+        // Subscribe to 2 topics
+        //client.subscribe("power/get");
         client.subscribe("power/prices");
     }
 }
@@ -97,10 +98,6 @@ void callback(char* topic, byte* payload, unsigned int length)
     {
         work = true;
     }
-    else if (!strcmp(topic,"power/get"))
-    {
-        transmit_value = true;
-    }
     
 }
 
@@ -108,12 +105,13 @@ void handle_sensor(void)
 {
     unsigned long delta;
     unsigned long current_reading = millis();
-    //erial.printf("millis now: %ld\tlast millis: %ld\n",current_reading, last_read);
+    
     if ((delta = current_reading-last_read) > 100)
     {
         calc_power = WATT_CONVERSION_CONSTANT / delta;
         last_read = current_reading;
         printer = true; // Just a debuging flag
+        transmit_value = true;
     }
 }
 
@@ -131,8 +129,7 @@ void myHandler(const char *event, const char *data)
     // "eventname/<transmission part no>"
     char event_str[12];
     strcpy(event_str,event);
-    //Serial.printf("%s\n",event_str);
-    //Serial.printf("%s\n",data);
+
     // Token used for strtok()
     char *token = NULL;
     // Extract the numbered part of eventname and use it for indexing "rec_data"
@@ -146,15 +143,12 @@ void myHandler(const char *event, const char *data)
 
     if (populate)
     {
-        // Mainly for debugging - Display what has been received
-        // Serial.printf("%s\n\n",temp);
-
         // Concatenate all transmission into one string
         for (int i = 0; i <= rec_cnt; i++)
         {
             strcat(temp,rec_data[i]);
         }
-        //Serial.printf("%s\n\n",temp);
+        
         // Tokenize the string. i.e. split the string so we can get to the data
         token = strtok(temp, ",!");
         for (int i = 0; i < range; i++)
@@ -180,13 +174,13 @@ void myPriceHandler(const char *event, const char *data)
 
 void loop()
 {
-    if (!client.isConnected())
-    {
-        reconnect();
-    }
-    if (client.isConnected()) 
+    if (client.isConnected())
     {
         client.loop();
+    }
+    else 
+    {
+        reconnect();
     }
 
 
@@ -233,8 +227,17 @@ void reconnect(void)
 {
     client.connect("sparkclient_" + String(Time.now()),"mqtt","mqtt");
 }
+/** Purpose of the function is to identify the hours at which the highest and lowest cost are.
+ *  Furthermore neighbouring low cost hour are identified and saved in an array for easy presentation
+*/
 void calc_low(void)
 {
+    int idx = 0;
+    double delta;
+    double small_offset;
+    double last_big = 0;
+    double last_small = 100; // Assign any absurdly high value
+
     for (int i = 0; i < range; i++)
     {
         // Find the highest price in range
@@ -255,16 +258,15 @@ void calc_low(void)
 
     // Define low price area
     small_offset = last_small + delta * DELTA_OFFSET;
-    //Serial.printf("small_offset: %f\n",small_offset);
     
     // Find hours of day at which price is within the defined low price point
     for (int i = 0; i <= range; i++)
     {
-        //Serial.printf("cost[%d]: %f\tcost_hour[%d]: %d\n",i,cost[i],i,cost_hour[i]);
+        
         if (cost[i] < small_offset)
         {
             low_range_hour[idx] = cost_hour[i];
-            //Serial.printf("low_range_hour[%d]: %d\tcost_hour[%d]: %d\n",idx,low_range_hour[idx],i,cost_hour[i]);
+            
             idx++;
         }
     }
@@ -275,7 +277,7 @@ void calc_low(void)
     Serial.printf("Highest price of the day: %f\n", last_big);
     Serial.printf("Lowest price of the day: %f\n", last_small);
     Serial.printf("Hours of the day where electricity is within accepted range:\n");
-    //Serial.printf("cnt: %d\n",cnt);
+    
     int i = 0;
     if (idx > 0)
     {
@@ -307,11 +309,10 @@ void get_data(int day)
 {
     rec_cnt = 0;
     range = 48;
-    idx = 0;
     cnt = 0;
     temp[0] = 0;
     String data = String::format("{ \"year\": \"%d\", \"month\":\"%02d\", \"day\": \"%02d\", \"day_two\": \"%02d\", \"hour\": \"%02d\" }", Time.year(), Time.month(), day, day + 2, Time.hour());
-    //Serial.printf("%s\n", data.c_str());
+    
      // Trigger the integration
     Particle.publish("elpriser", data, PRIVATE);
 }

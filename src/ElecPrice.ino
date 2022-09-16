@@ -23,7 +23,6 @@ bool printer = false;
 int big_idx;
 int small_idx;
 int low_range_hour[24];
-int idx = 0;
 
 int cnt;
 int start_stop[12][2] = {0};
@@ -74,7 +73,7 @@ void setup()
         // Debugging publish
         client.publish("power/get","hello world");
         // Subscribe to 2 topics
-        client.subscribe("power/get");
+        //client.subscribe("power/get");
         client.subscribe("power/prices");
     }
 }
@@ -89,10 +88,6 @@ void callback(char* topic, byte* payload, unsigned int length)
     {
         work = true;
     }
-    else if (!strcmp(topic,"power/get"))
-    {
-        transmit_value = true;
-    }
     
 }
 
@@ -106,6 +101,7 @@ void handle_sensor(void)
         calc_power = WATT_CONVERSION_CONSTANT / delta;
         last_read = current_reading;
         printer = true; // Just a debuging flag
+        transmit_value = true;
     }
 }
 
@@ -168,13 +164,13 @@ void myPriceHandler(const char *event, const char *data)
 
 void loop()
 {
-    if (!client.isConnected())
-    {
-        reconnect();
-    }
-    if (client.isConnected()) 
+    if (client.isConnected())
     {
         client.loop();
+    }
+    else 
+    {
+        reconnect();
     }
 
 
@@ -221,8 +217,12 @@ void reconnect(void)
 {
     client.connect("sparkclient_" + String(Time.now()),"mqtt","mqtt");
 }
+/** Purpose of the function is to identify the hours at which the highest and lowest cost are.
+ *  Furthermore neighbouring low cost hour are identified and saved in an array for easy presentation
+*/
 void calc_low(void)
 {
+    int idx = 0;
     double delta;
     double small_offset;
     double last_big = 0;
@@ -299,7 +299,6 @@ void get_data(int day)
 {
     rec_cnt = 0;
     range = 48;
-    idx = 0;
     cnt = 0;
     temp[0] = 0;
     String data = String::format("{ \"year\": \"%d\", \"month\":\"%02d\", \"day\": \"%02d\", \"day_two\": \"%02d\", \"hour\": \"%02d\" }", Time.year(), Time.month(), day, day + 2, Time.hour());
