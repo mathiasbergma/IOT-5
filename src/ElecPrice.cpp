@@ -92,11 +92,8 @@ void callback(char* topic, byte* payload, unsigned int length)
     memcpy(p, payload, length);
     p[length] = NULL;
     */
-    if (!strcmp(topic,"power/prices"))
-    {
-        work = true;
-    }
-    
+
+    work = true;
 }
 
 void handle_sensor(void)
@@ -178,6 +175,7 @@ void loop()
     }
     else 
     {
+        Serial.printf("Client disconnected\n");
         reconnect();
     }
 
@@ -196,6 +194,7 @@ void loop()
 
     if (work)
     {
+        Serial.printf("In work\n");
         // Do some meaningfull work with the collected data
         String data = "Cheap(ish) hours of the day: ";
         for (int z = 0; z < cnt; z++)
@@ -217,7 +216,7 @@ void loop()
         client.publish("power",values);
         transmit_value = false;
     }
-    // Wait 2 second
+    // Wait 2 seconds
     delay(2000);
 }
 
@@ -225,7 +224,8 @@ void reconnect(void)
 {
     client.connect("sparkclient_" + String(Time.now()),"mqtt","mqtt");
 }
-/** Purpose of the function is to identify the hours at which the highest and lowest cost are.
+
+/** @brief The purpose of the function is to identify the hours at which the highest and lowest cost are.
  *  Furthermore neighbouring low cost hour are identified and saved in an array for easy presentation
 */
 void calc_low(void)
@@ -302,6 +302,8 @@ void calc_low(void)
     work = true;
 }
 
+/** @brief Puplishes a formatted command string to Particle cloud that fires off a webhook
+ */
 void get_data(int day)
 {
     rec_cnt = 0;
