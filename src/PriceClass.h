@@ -3,6 +3,7 @@
 #include "application.h"
 
 #define EVENT_NAME "elpriser"
+#define INITIAL_RANGE 48
 
 
 class PriceClass
