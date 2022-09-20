@@ -8,12 +8,19 @@
 #define HOST "192.168.0.103"
 #define PORT 1883
 
-double cost[48];
-int cost_hour[48];
+
+
+double cost[48];        // vi requester 48 værdier. (det er max 36)
+int cost_hour[48];      // følger cost
 int date;
-int range = 48;        // Max received count. Updated if received count is smaller
+int range = 48;        // range tæller hvor mange vi reelt har modtaget.
+                        // og begrænser for-loops.
+
 char temp[5 * 513];    // Create an array that can hold the entire transmission
+                        // et respons er max 512, 
+
 char rec_data[5][513]; // Array for holding individual parts of transmission
+
 byte rec_cnt;          // Counter to keep track of recieved transmissions
 bool populate = false; // Entire transmission received flag
 bool work = false;
@@ -298,8 +305,15 @@ void get_data(int day)
     range = 48;
     cnt = 0;
     temp[0] = 0;
-    String data = String::format("{ \"year\": \"%d\", \"month\":\"%02d\", \"day\": \"%02d\", \"day_two\": \"%02d\", \"hour\": \"%02d\" }", Time.year(), Time.month(), day, day + 2, Time.hour());
+
+    //String data = String::format("{ \"year\": \"%d\", \"month\":\"%02d\", \"day\": \"%02d\", \"day_two\": \"%02d\", \"hour\": \"%02d\" }", Time.year(), Time.month(), day, day + 2, Time.hour());
+    String data = "{ \"year\": \"" + (String)Time.year()  + "\", " +
+        String::format("\"month\": \"%02d\", ", Time.month()) + 
+        String::format("\"day\": \"%02d\", ", day) +
+        String::format("\"day_two\": \"%02d\", ", (day + 2)) +
+        String::format("\"hour\": \"%02d\" }", Time.hour());
 
     // Trigger the integration
-    Particle.publish("elpriser", data, PRIVATE);
+    Particle.publish("elpriser", data);
+     Serial.println(data);
 }
