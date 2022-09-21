@@ -5,19 +5,21 @@
 #line 1 "c:/Users/Anders/Documents/ParticleProjects/IOT2/IOT-5/src/ElecPrice.ino"
 #include "../lib/MQTT/src/MQTT.h"
 #include "application.h"
-#include "string.h"
+//#include "string.h"
+#include <string>
 
 void setup();
 void myHandler(const char *event, const char *data);
 void myPriceHandler(const char *event, const char *data);
 void loop();
-#line 5 "c:/Users/Anders/Documents/ParticleProjects/IOT2/IOT-5/src/ElecPrice.ino"
+#line 6 "c:/Users/Anders/Documents/ParticleProjects/IOT2/IOT-5/src/ElecPrice.ino"
 #define DELTA_OFFSET 0.3
 #define KW_SENSOR_PIN D6
 #define WATT_CONVERSION_CONSTANT 3600000
-#define HOST "192.168.0.103"
+#define HOST "192.168.1.102"
 #define PORT 1883
 
+std::string message;
 double cost[48];   // vi requester 48 værdier. (det er max 36)
 int cost_hour[48]; // følger cost
 int date;
@@ -52,6 +54,7 @@ void reconnect(void);
 
 // Callback function for MQTT transmission
 void callback(char *topic, byte *payload, unsigned int length);
+
 // Create MQTT client
 MQTT client(HOST, PORT, 512, 30, callback);
 
@@ -69,15 +72,17 @@ void setup()
     // Particle.variable("Power", calc_power);
 
     // Subscribe to the integration response event
-    Particle.subscribe("prices", myHandler, MY_DEVICES);
-    Particle.subscribe("get_prices", myPriceHandler, MY_DEVICES);
+    Particle.subscribe("prices", myHandler);
+    Particle.subscribe("get_prices", myPriceHandler);
+
+    Serial.println("subscribed.");
 
     // Request data on power prices for the next 48 hours
     get_data(Time.day());
 
     // connect to the server(unique id by Time.now())
     Serial.printf("Return value: %d", client.connect("sparkclient_" + String(Time.now()), "mqtt", "mqtt"));
-
+    Serial.println();
     // publish/subscribe
     if (client.isConnected())
     {
@@ -91,6 +96,7 @@ void setup()
 
 void callback(char *topic, byte *payload, unsigned int length)
 {
+    Serial.println("callback called");
     /*
     char p[length + 1];
     memcpy(p, payload, length);
@@ -102,6 +108,7 @@ void callback(char *topic, byte *payload, unsigned int length)
 
 void handle_sensor(void)
 {
+    Serial.println("handle_sensor called");
     unsigned long delta;
     unsigned long current_reading = millis();
 
@@ -116,32 +123,54 @@ void handle_sensor(void)
 
 void myHandler(const char *event, const char *data)
 {
-    populate = false;
-    rec_cnt++;
+    populate = false;   // We're asuming this isn't the last transmission.
+    rec_cnt++;          // increment recieved transmissions counter.
+
+    Serial.print("DATA PACKAGE #");
+    Serial.println(rec_cnt);
+    Serial.println(data);
 
     /* When transmission are greater than 512 bytes, it will be split into 512
      * byte parts. The final transmission part should therefore be less than 512.
      * Save transmission size into variable so we can act on it
      */
     int transmission_size = strlen(data);
-
+    Serial.print("Transmission length: ");
+    Serial.println(transmission_size);
     // "eventname/<transmission part no>"
     char event_str[12];
     strcpy(event_str, event);
 
+    Serial.println("############## EVENT #################");
+    Serial.println(event);
+    Serial.println("############## EVENT END #####################");
+
+    message.append(data);
+
+
     // Token used for strtok()
     char *token = NULL;
     // Extract the numbered part of eventname and use it for indexing "rec_data"
-    strcpy(rec_data[atoi(strtok(event_str, "prices/"))], data);
+    //strcpy(rec_data[atoi(strtok(event_str, "prices/"))], data);
+
+
+    // prolly easier to use transmission counter for indexing.
+    strcpy(rec_data[(rec_cnt - 1)], data);
+
 
     // If transmission size is less than 512 = last transmission received
+    // if (transmission_size < 512)
+    // {
+    //     populate = true;
+    // }
+
     if (transmission_size < 512)
     {
         populate = true;
-    }
+        
+        Serial.println("POPULATEEED!! Im so happy.");
+        Serial.println();
 
-    if (populate)
-    {
         // Concatenate all transmission into one string
         for (int i = 0; i <= rec_cnt; i++)
         {
@@ -163,11 +192,54 @@ void myHandler(const char *event, const char *data)
                 break;     // Break the while loop
             }
         }
+
+        Serial.print("Range is: ");
+        Serial.println(range);
+
+        message.erase(0,1);                 // Erase the leading "!"
+
+        int dd_idx = message.find("T") - 2; // Index of the date
+        int hh_idx = dd_idx + 3;            // Index of the hour
+        int pp_idx = hh_idx + 9;            // Index of the price
+
+        int bng_idx = message.find("!") + 1;    // Index of the end of the first part.
+        int idx = 0;                        // cost / cost_hour indexing.
+
+
+        //Iterate over the message, extracting the juicy bits, until no more "!".
+        while (bng_idx > 0)
+        {   
+            Serial.print("Iteration #");
+            Serial.println(idx);
+
+            Serial.print("cost_hour[");
+            Serial.print(idx);
+            Serial.print("]: ");
+            Serial.println(cost_hour[idx]);
+
+            // // Serial.print("hour string: ");
+            // // Serial.println(stoi(message.substr(hh_idx, 2)));
+
+            // Serial.print("cost[");
+            // Serial.print(idx);
+            // Serial.print("]: ");
+            // Serial.println(cost[idx]);
+
+            // // Serial.print("cost string: ");
+            // // Serial.println(stof(message.substr(pp_idx, bng_idx - pp_idx)));
+
+            // Serial.print("seems ok - index: ");
+            // Serial.println(idx);
+            message.erase(0, (bng_idx));          // Erase the part we read, ready for next iteration           
+            bng_idx = message.find("!") + 1;    // Find index of next "!".
+            idx++;                              // Increment array index.
+         } 
     }
 }
 
 void myPriceHandler(const char *event, const char *data)
 {
+    Serial.println("myPriceHandler fired");
     get_data(Time.day());
 }
 
@@ -225,6 +297,7 @@ void loop()
 
 void reconnect(void)
 {
+    Serial.println("Reconnecting");
     client.connect("sparkclient_" + String(Time.now()), "mqtt", "mqtt");
 }
 
@@ -233,6 +306,7 @@ void reconnect(void)
  */
 void calc_low(void)
 {
+    Serial.println("CALCULATING");
     int idx = 0;
 
     double delta;
@@ -324,5 +398,5 @@ void get_data(int day)
 
     // Trigger the integration
     Particle.publish("elpriser", data);
-    Serial.println(data);
+    Serial.println("data requested - published \"elpriser\"");
 }
