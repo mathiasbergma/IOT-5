@@ -4,6 +4,7 @@
 
 #define EVENT_NAME "elpriser"
 #define INITIAL_RANGE 48
+#define MAX_HOURS 48
 #define MAX_TRANSMISSIONS 5
 #define MAX_TRANSMISSION_SIZE 512
 

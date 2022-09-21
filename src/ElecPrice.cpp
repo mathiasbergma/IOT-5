@@ -172,68 +172,50 @@ void myHandler(const char *event, const char *data)
         Serial.println();
 
         // Concatenate all transmission into one string
-        for (int i = 0; i <= rec_cnt; i++)
-        {
-            strcat(temp, rec_data[i]);
-        }
+        // for (int i = 0; i <= rec_cnt; i++)
+        // {
+        //     strcat(temp, rec_data[i]);
+        // }
 
-        // Tokenize the string. i.e. split the string so we can get to the data
-        token = strtok(temp, ",!");
-        for (int i = 0; i < range; i++)
-        {
-            // Save hour and cost in differen containers
-            sscanf(token, "%*d-%*d-%dT%d:%*d:%*d", &date, &cost_hour[i]);
-            token = strtok(NULL, ",!");
-            cost[i] = atof(token) / 1000;
+        // // Tokenize the string. i.e. split the string so we can get to the data
+        // token = strtok(temp, ",!");
+        // for (int i = 0; i < range; i++)
+        // {
+        //     // Save hour and cost in differen containers
+        //     sscanf(token, "%*d-%*d-%dT%d:%*d:%*d", &date, &cost_hour[i]);
+        //     token = strtok(NULL, ",!");
+        //     cost[i] = atof(token) / 1000;
 
-            if ((token = strtok(NULL, ",!")) == NULL) // Received data count is less than 48.
-            {
-                range = i; // Update range, such that the rest of program flow is aware of size
-                break;     // Break the while loop
-            }
-        }
-
-        Serial.print("Range is: ");
-        Serial.println(range);
+        //     if ((token = strtok(NULL, ",!")) == NULL) // Received data count is less than 48.
+        //     {
+        //         range = i; // Update range, such that the rest of program flow is aware of size
+        //         break;     // Break the while loop
+        //     }
+        // }
 
         message.erase(0,1);                 // Erase the leading "!"
 
-        int dd_idx = message.find("T") - 2; // Index of the date
-        int hh_idx = dd_idx + 3;            // Index of the hour
-        int pp_idx = hh_idx + 9;            // Index of the price
+        int dd_index = message.find("T") - 2; // Index of the date
+        int hh_index = dd_index + 3;            // Index of the hour
+        int pp_index = hh_index + 9;            // Index of the price
 
-        int bng_idx = message.find("!") + 1;    // Index of the end of the first part.
+        int bang_index = message.find("!") + 1;    // Index of the end of the first part.
         int idx = 0;                        // cost / cost_hour indexing.
 
 
         //Iterate over the message, extracting the juicy bits, until no more "!".
-        while (bng_idx > 0)
+        while (bang_index > 0)
         {   
-            Serial.print("Iteration #");
-            Serial.println(idx);
+            //date = stoi(message.substr(dd_index, 2));                                   // Date (dd) converted to int (string-to-int)
+            cost_hour[idx] = stoi(message.substr(hh_index, 2));                         // Hour (hh) converted to int. 
+            cost[idx] = stof(message.substr(pp_index, bang_index - pp_index)) / 1000;   // Price converted to float.
 
-            Serial.print("cost_hour[");
-            Serial.print(idx);
-            Serial.print("]: ");
-            Serial.println(cost_hour[idx]);
+            message.erase(0, bang_index);           // Erase the part we read, ready for next iteration           
+            bang_index = message.find("!") + 1;    // Find index of next "!".
+            idx++;                                  // Increment array index.
+        } 
 
-            // // Serial.print("hour string: ");
-            // // Serial.println(stoi(message.substr(hh_idx, 2)));
-
-            // Serial.print("cost[");
-            // Serial.print(idx);
-            // Serial.print("]: ");
-            // Serial.println(cost[idx]);
-
-            // // Serial.print("cost string: ");
-            // // Serial.println(stof(message.substr(pp_idx, bng_idx - pp_idx)));
-
-            // Serial.print("seems ok - index: ");
-            // Serial.println(idx);
-            message.erase(0, (bng_idx));          // Erase the part we read, ready for next iteration           
-            bng_idx = message.find("!") + 1;    // Find index of next "!".
-            idx++;                              // Increment array index.
-         } 
+        range = idx;
     }
 }
 

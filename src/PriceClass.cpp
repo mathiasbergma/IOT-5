@@ -98,24 +98,24 @@ void PriceClass::prices_subscription_handler(const char *event_name, const char 
         
         message.erase(0,1);                 // Erase the leading "!"
 
-        int dd_idx = message.find("T") - 2; // Index of the date
-        int hh_idx = dd_idx + 3;            // Index of the hour
-        int pp_idx = hh_idx + 9;            // Index of the price
-
-        int bng_idx = message.find("!");    // Index of the end of the first part.
-        int idx = 0;                        // cost / cost_hour indexing.
+        int dd_index = message.find("T") - 2;       // Date index
+        int hh_index = dd_index + 3;                // Hour index
+        int pp_index = hh_index + 9;                // Price index
+        int bang_index = message.find("!") + 1;     // Index of the end of the first part.
+        int idx = 0;                                // loop index.
 
         // Iterate over the message, extracting the juicy bits.
-        while (bng_idx != string::npos)
+        while (bang_index > 0)
         {   
-            date = stoi(message.substr(dd_idx, 2));                             // Date (dd) converted to int (string-to-int)
-            cost_hour[idx] = stoi(message.substr(hh_idx, 2));                   // Hour (hh) converted to int. 
-            cost[idx] = stof(message.substr(pp_idx, bng_idx - pp_idx)) / 1000;  // Price converted to float.
+            //date = stoi(message.substr(dd_index, 2));                                   // Date (dd) converted to int (string-to-int)
+            cost_hour[idx] = stoi(message.substr(hh_index, 2));                         // Hour (hh) converted to int. 
+            cost[idx] = stof(message.substr(pp_index, bang_index - pp_index)) / 1000;   // Price converted to float.
 
-            message.erase(0, bng_idx);          // Erase the part we read, ready for next iteration           
-            int bng_idx = message.find("!");    // Find index of next "!".
-            idx++;                              // Increment array index.
+            message.erase(0, bang_index);           // Erase the part we read, ready for next iteration           
+            bang_index = message.find("!") + 1;    // Find index of next "!".
+            idx++;                                  // Increment array index.
         } 
+        range = idx;
         
     }
  }
