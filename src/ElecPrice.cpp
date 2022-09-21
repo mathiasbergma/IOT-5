@@ -17,17 +17,23 @@ void loop();
 #define WATT_CONVERSION_CONSTANT 3600000
 #define HOST "192.168.0.103"
 #define PORT 1883
+#define SECONDS_TO_DAY 86400
+#define PULL_TIME_1 23*3600 + 10*60
+#define PULL_TIME_2 11*3600 + 10*60
+#define MAX_RANGE 48
 
-double cost[48];
-int cost_hour[48];
+int oneShotGuard = -1;
+double cost[MAX_RANGE];
+int cost_hour[MAX_RANGE];
 int date;
-int range = 48;         // Max received count. Updated if received count is smaller
+int range = MAX_RANGE;         // Max received count. Updated if received count is smaller
 char temp[5*513];       // Create an array that can hold the entire transmission
 char rec_data[5][513];  // Array for holding individual parts of transmission
 byte rec_cnt;           // Counter to keep track of recieved transmissions
 bool populate = false;  // Entire transmission received flag
-bool work = false;
+bool work = false;      // Received price data
 bool printer = false;
+bool update_prices = false;
 
 int low_range_hour[24];
 
@@ -49,19 +55,14 @@ void reconnect(void);
 void callback(char* topic, byte* payload, unsigned int length);
 // Create MQTT client
 MQTT client("192.168.0.103", PORT, 512, 30, callback);
+// Create sleep instance
+SystemSleepConfiguration config;
 
 void setup()
 {
     last_read = millis(); //Give it an initial value
     pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                 //Setup pinmode for LDR pin
     attachInterrupt(KW_SENSOR_PIN,handle_sensor,RISING);    //Attach interrup that will be called when rising
-    
-    /* Publish some variables to particle web,
-     * so we can follow the sensor output online
-    */
-    //Particle.variable("Biggest", last_big);
-    //Particle.variable("Smallest", last_small);
-    //Particle.variable("Power", calc_power);
     
     // Subscribe to the integration response event
     Particle.subscribe("prices", myHandler, MY_DEVICES);
@@ -83,6 +84,9 @@ void setup()
         //client.subscribe("power/get");
         client.subscribe("power/prices");
     }
+
+    // Setup low power mode
+    config.mode(SystemSleepMode::ULTRA_LOW_POWER).gpio(KW_SENSOR_PIN, RISING).network(NETWORK_INTERFACE_ALL);
 }
 
 void callback(char* topic, byte* payload, unsigned int length) 
@@ -164,7 +168,7 @@ void myHandler(const char *event, const char *data)
 
 void myPriceHandler(const char *event, const char *data)
 {
-    get_data(Time.day());
+    update_prices = true;
 }
 
 void loop()
@@ -179,7 +183,21 @@ void loop()
         reconnect();
     }
 
+    // Check what time it is
+    int currentSecond = Time.local() % SECONDS_TO_DAY;
+    if ((currentSecond == PULL_TIME_1 || currentSecond == PULL_TIME_2) && currentSecond != oneShotGuard)
+    {
+        oneShotGuard = currentSecond;
+        update_prices = true;
+    }
 
+    // Is it time to update the prices or has it been requested?
+    if (update_prices == true)
+    {
+        get_data(Time.day());
+        update_prices = false;
+    }
+    
     if (printer) // Debugging flag set in interrupt handler
     {
         Serial.printf("Light: %d\n",calc_power);
@@ -216,8 +234,9 @@ void loop()
         client.publish("power",values);
         transmit_value = false;
     }
-    // Wait 2 seconds
-    delay(2000);
+    // Wait 1 second
+    delay(1000);
+    //System.sleep(config);
 }
 
 void reconnect(void)
@@ -303,6 +322,7 @@ void calc_low(void)
 }
 
 /** @brief Puplishes a formatted command string to Particle cloud that fires off a webhook
+ *  @param day
  */
 void get_data(int day)
 {
@@ -312,6 +332,6 @@ void get_data(int day)
     temp[0] = 0;
     String data = String::format("{ \"year\": \"%d\", \"month\":\"%02d\", \"day\": \"%02d\", \"day_two\": \"%02d\", \"hour\": \"%02d\" }", Time.year(), Time.month(), day, day + 2, Time.hour());
     
-     // Trigger the integration
+    // Trigger the integration
     Particle.publish("elpriser", data, PRIVATE);
 }
