@@ -6,4 +6,4 @@ https://api.energidataservice.dk/dataset/Elspotprices?offset=0&start={{{year}}}-
 
 #### Response template 
 In Particle Webhook setup, use the following response template to extract the data needed:
-{{#records}}!{{HourDK}},{{SpotPriceDKK}}{{/records}}
+***{{#records}}!{{HourDK}},{{SpotPriceDKK}}{{/records}}***
