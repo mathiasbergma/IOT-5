@@ -132,8 +132,8 @@ void myHandler(const char *event, const char *data)
     // Token used for strtok()
     char *token = NULL;
     // Extract the numbered part of eventname and use it for indexing "rec_data"
-    strcpy(rec_data[atoi(strtok(event_str,"prices/"))],data);
-    
+    //strcpy(rec_data[atoi(strtok(event_str,"prices/"))],data);
+    strcat(&temp[atoi(strtok(event_str,"prices/"))*512],data);
     // If transmission size is less than 512 = last transmission received
     if (transmission_size < 512)
     {
@@ -142,12 +142,14 @@ void myHandler(const char *event, const char *data)
 
     if (populate)
     {
+        Serial.printf("%s\n",temp);
         // Concatenate all transmission into one string
+        /*
         for (int i = 0; i <= rec_cnt; i++)
         {
-            strcat(temp,rec_data[i]);
+            strcat(&temp[2*512],rec_data[i]);
         }
-        
+        */
         // Tokenize the string. i.e. split the string so we can get to the data
         token = strtok(temp, ",!");
         for (int i = 0; i < range; i++)
