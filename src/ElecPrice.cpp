@@ -28,7 +28,6 @@ int cost_hour[MAX_RANGE];
 int date;
 int range = MAX_RANGE;         // Max received count. Updated if received count is smaller
 char temp[5*513];       // Create an array that can hold the entire transmission
-char rec_data[5][513];  // Array for holding individual parts of transmission
 byte rec_cnt;           // Counter to keep track of recieved transmissions
 bool populate = false;  // Entire transmission received flag
 bool work = false;      // Received price data
@@ -119,7 +118,7 @@ void myHandler(const char *event, const char *data)
     populate = false;
     rec_cnt++;
 
-    /* When transmission are greater than 512 bytes, it will be split into 512
+    /* When transmissions are greater than 512 bytes, it will be split into 512
      * byte parts. The final transmission part should therefore be less than 512.
      * Save transmission size into variable so we can act on it
     */
@@ -131,8 +130,7 @@ void myHandler(const char *event, const char *data)
 
     // Token used for strtok()
     char *token = NULL;
-    // Extract the numbered part of eventname and use it for indexing "rec_data"
-    //strcpy(rec_data[atoi(strtok(event_str,"prices/"))],data);
+    // Extract the numbered part of eventname and use it for indexing "temp"
     strcat(&temp[atoi(strtok(event_str,"prices/"))*512],data);
     // If transmission size is less than 512 = last transmission received
     if (transmission_size < 512)
@@ -142,14 +140,9 @@ void myHandler(const char *event, const char *data)
 
     if (populate)
     {
+        // Display what has been received
         Serial.printf("%s\n",temp);
-        // Concatenate all transmission into one string
-        /*
-        for (int i = 0; i <= rec_cnt; i++)
-        {
-            strcat(&temp[2*512],rec_data[i]);
-        }
-        */
+        
         // Tokenize the string. i.e. split the string so we can get to the data
         token = strtok(temp, ",!");
         for (int i = 0; i < range; i++)

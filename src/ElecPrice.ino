@@ -18,7 +18,6 @@ int cost_hour[MAX_RANGE];
 int date;
 int range = MAX_RANGE;         // Max received count. Updated if received count is smaller
 char temp[5*513];       // Create an array that can hold the entire transmission
-char rec_data[5][513];  // Array for holding individual parts of transmission
 byte rec_cnt;           // Counter to keep track of recieved transmissions
 bool populate = false;  // Entire transmission received flag
 bool work = false;      // Received price data
