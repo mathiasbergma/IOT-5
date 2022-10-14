@@ -13,16 +13,10 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <SPI.h>
-#include <PubSubClient.h>
 #include <WiFi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <Arduino_JSON.h>
-#include <WiFiUdp.h>
-#include <NTPClient.h>
-#include <HTTPClient.h>
-#include <esp_sntp.h>
-
 
 #include <TFT_eSPI.h> // Hardware-specific library
 
@@ -32,15 +26,6 @@ const char *password = "Donaldduck"; // replace with your wifi password
 #define TOKEN "esp32board"
 #define TOPIC "esp32board"
 
-HTTPClient http;
-
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "dk.pool.ntp.org", 2 * 3600);
-WiFiClient wifiClient;
-PubSubClient client(wifiClient);
-int status = WL_IDLE_STATUS;
-char hostname[] = "54.205.9.137"; // replace this with IP address of machine
-// on which broker is installed
 int whr_count_now;
 int last_hr;
 
@@ -72,8 +57,6 @@ int reading = 0; // Value to be displayed
 int last_reading = 0;
 int d = 0; // Variable used for the sinewave test waveform
 
-void reconnect();
-void MQTTPOST();
 
 void Test(void *arg);
 void Httprequest(void *arg);
@@ -144,30 +127,12 @@ void setup(void)
 
   tft.fillScreen(TFT_BLACK);
 
-  setup_wifi();
-  client.setServer(hostname, 1883);
-  client.setCallback(callback);
-
-  timeClient.update();
-
-  if (!client.connected())
-  {
-    reconnect();
-  }
-  Serial.println(timeClient.getFormattedTime());
-
-  // xTaskCreate(Test_read, "Testread", 1024 *10, NULL, 4, NULL);
-
   vTaskDelay(500 / portTICK_PERIOD_MS);
 
   int xpos = 5, ypos = 5, radius = 85;
   reading = 1750;
   // Comment out above meters, then uncomment the next line to show large meter
   last_reading = ringMeter(reading, 0, 2000, xpos, ypos, radius, "Watts", GREEN2RED);
-
-  xTaskCreate(Test, "Test", 30 * configMINIMAL_STACK_SIZE, NULL, 4, NULL);
-  xTaskCreate(Httprequest_today, "Httprequest_today", 30 * configMINIMAL_STACK_SIZE, NULL, 4, NULL);
-  xTaskCreate(checktime, "checktime", 10 * configMINIMAL_STACK_SIZE, NULL, 2, NULL);
 }
 
 void loop()
@@ -434,28 +399,7 @@ int update_ringMeter(int value_last, int value, int vmin, int vmax, int x, int y
                                                    if (r > 84) tft.drawCentreString(units, x, y + 30, 4); // Units display
                                                    else tft.drawCentreString(units, x, y + 5, 2); // Units display
                                                  */
-  // Calculate and return right hand side x coordinate
-  char buf3[10];
-  char buf4[10];
-  len = 5;
-  double transport = 0;  //transport tariff
-  if ((last_hr >= 17) & (last_hr < 20))
-  {
-    transport = 985.6;
-  }
-  else
-  {
-    transport = 378.5;
-  }
-  double cost = (transport + pricetoday[last_hr]) * whr_count_now / 1000.00 / 1000.0;
-  dtostrf(cost, len, 4, buf3);
-  tft.drawCentreString(buf3, x + 200, y - 20, 6);
-  tft.drawCentreString("kr", x + 310, y, 4);
-  double price = (pricetoday[last_hr]+transport) / 1000.0;
-  dtostrf(price, len, 4, buf4);
-  tft.drawCentreString(buf4, x + 200, 0, 4);
-  tft.drawCentreString("kr/KWHr", x + 310, 0, 4);
-  tft.drawCentreString("used this hour", x + 200, 40, 4);
+ 
   return value;
 }
 // #########################################################################
@@ -507,179 +451,4 @@ float sineWave(int phase)
   return sin(phase * 0.0174532925);
 }
 
-void MQTTPOST()
-{
-  // payload formation begins here
-}
 
-void reconnect()
-{
-  // Loop until we're reconnected
-  while (!client.connected())
-  {
-    Serial.print("Attempting MQTT connection...");
-    // Attempt to connect
-    if (client.connect("esp32board"))
-    {
-      Serial.println("connected");
-      // Subscribe
-      client.subscribe("esp32board/power");
-    }
-    else
-    {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
-  }
-}
-
-void Test(void *arg)
-{
-  for (;;)
-  {
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-
-    if (WiFi.status() != WL_CONNECTED)
-    {
-      setup_wifi();
-    }
-    if (!client.connected())
-    {
-      reconnect();
-    }
-
-    client.loop();
-  }
-}
-
-void Httprequest(void *arg)
-{
-  while (true)
-  {
-    if ((WiFi.status() == WL_CONNECTED))
-    { // Check the current connection status
-
-      HTTPClient http;
-
-      http.begin("https://api.energidataservice.dk/dataset/Elspotprices?filter={%22PriceArea%22:%22DK2%22}&offset=0&start=now-PT1H&limit=1&sort=HourUTC%20ASC&timezone=dk"); // Specify the URL
-      int httpCode = http.GET();                                                                                                                                             // Make the request
-
-      if (httpCode > 0)
-      { // Check for the returning code
-
-        String payload = http.getString();
-        JSONVar myObject = JSON.parse(payload);
-        if (JSON.typeof(myObject) == "undefined")
-        {
-          Serial.println("Parsing input failed!");
-        }
-        if (myObject.hasOwnProperty("records"))
-        {
-          JSONVar myArray = myObject["records"];
-          Serial.println(myArray[0]);
-          JSONVar myHour = myArray[0];
-
-          if (JSON.typeof(myHour["SpotPriceDKK"]) == "undefined")
-          {
-            Serial.println("parsing failed 2");
-          }
-          else
-          {
-            Serial.println((double)myHour["SpotPriceDKK"]);
-            // pricenow = (double)myHour["SpotPriceDKK"];
-          }
-        }
-        // Serial.println(httpCode);
-        // Serial.println(payload);
-      }
-
-      else
-      {
-        Serial.println("Error on HTTP request");
-      }
-
-      http.end(); // Free the resources
-    }
-    Serial.println(timeClient.getFormattedTime());
-    // Serial.println(timeClient.getFormattedUTCDateTime());
-
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-  }
-}
-
-void Httprequest_today(void *arg)
-{
-
-  if ((WiFi.status() == WL_CONNECTED))
-  { // Check the current connection status
-
-    HTTPClient http;
-
-    http.begin("https://api.energidataservice.dk/dataset/Elspotprices?filter={%22PriceArea%22:%22DK2%22}&start=now-PT" + ((String)(timeClient.getHours() + 1)) + "H&offset=0&limit=24&columns=HourDk,PriceArea,SpotPriceDKK&sort=HourDK%20ASC&timezone=dk"); // Specify the URL
-    int httpCode = http.GET();                                                                                                                                                                                                                               // Make the request
-
-    if (httpCode > 0)
-    { // Check for the returning code
-
-      String payload = http.getString();
-      JSONVar myObject = JSON.parse(payload);
-      if (JSON.typeof(myObject) == "undefined")
-      {
-        Serial.println("Parsing input failed!");
-      }
-      if (myObject.hasOwnProperty("records"))
-      {
-        JSONVar myArray = myObject["records"];
-        Serial.println(myArray[0]);
-        for (int i = 0; i < 24; i++)
-        {
-          JSONVar myHour = myArray[i];
-
-          if (JSON.typeof(myHour["SpotPriceDKK"]) == "undefined")
-          {
-            Serial.println("parsing failed 2");
-          }
-          else
-          {
-            Serial.println((double)myHour["SpotPriceDKK"]);
-            pricetoday[i] = (double)myHour["SpotPriceDKK"];
-          }
-        }
-      }
-      // Serial.println(httpCode);
-      // Serial.println(payload);
-    }
-
-    else
-    {
-      Serial.println("Error on HTTP request");
-    }
-
-    http.end(); // Free the resources
-
-    vTaskDelete(NULL);
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-  }
-  Serial.println(timeClient.getFormattedTime());
-  // Serial.println(timeClient.getFormattedUTCDateTime());
-}
-
-void checktime(void *arg)
-{
-  while (1)
-  {
-    if (int i = timeClient.getHours() != last_hr)
-    {
-      whr_count_now = 0;
-      last_hr = timeClient.getHours();
-    }
-    else
-    {
-      last_hr = timeClient.getHours();
-    }
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-  }
-}
