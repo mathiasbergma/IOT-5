@@ -19,12 +19,7 @@
 #include <Arduino_JSON.h>
 
 #include <TFT_eSPI.h> // Hardware-specific library
-
-const char *ssid = "Hynes57";        // replace this with your wifi  name
-const char *password = "Donaldduck"; // replace with your wifi password
-
-#define TOKEN "esp32board"
-#define TOPIC "esp32board"
+#include "defines.h"
 
 int whr_count_now;
 int last_hr;
@@ -33,35 +28,17 @@ volatile int power;
 volatile double pricetoday[24];
 
 // prototypes
-float sineWave(int phase);
 int ringMeter(int value, int vmin, int vmax, int x, int y, int r, char *units, byte scheme);
 int update_ringMeter(int value_last, int value, int vmin, int vmax, int x, int y, int r, char *units, byte scheme);
 unsigned int rainbow(byte value);
 
-// Meter colour schemes
-#define RED2RED 0
-#define GREEN2GREEN 1
-#define BLUE2BLUE 2
-#define BLUE2RED 3
-#define GREEN2RED 4
-#define RED2GREEN 5
 
-#define TFT_GREY 0x2104 // Dark grey 16 bit colour
 
 TFT_eSPI tft = TFT_eSPI(); // Invoke custom library
 
-uint32_t runTime = -99999; // time for next update
-
-int minutePrevious;
 int reading = 0; // Value to be displayed
 int last_reading = 0;
 int d = 0; // Variable used for the sinewave test waveform
-
-
-void Test(void *arg);
-void Httprequest(void *arg);
-void Httprequest_today(void *arg);
-void checktime(void *arg);
 
 void callback(char *topic, byte *message, unsigned int length)
 {
@@ -95,27 +72,6 @@ void callback(char *topic, byte *message, unsigned int length)
   // Feel free to add more if statements to control more GPIOs with MQTT
 }
 
-void setup_wifi()
-{
-  delay(10);
-  // We start by connecting to a WiFi network
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(500);
-    Serial.print(".");
-  }
-
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-}
 
 void setup(void)
 {
@@ -441,14 +397,6 @@ unsigned int rainbow(byte value)
     red = 31;
   }
   return (red << 11) + (green << 5) + blue;
-}
-
-// #########################################################################
-// Return a value in range -1 to +1 for a given phase angle in degrees
-// #########################################################################
-float sineWave(int phase)
-{
-  return sin(phase * 0.0174532925);
 }
 
 
