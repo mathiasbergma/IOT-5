@@ -24,16 +24,16 @@ BleCharacteristic WhrTodayCharacteristic("DKK Today", BleCharacteristicProperty:
 //bool device_connected = false; //not in use yet
 //bool advertising_BLE = false;  //not in use yet
 /*
-    To send values do the following after setup
+    //To send values do the following in main loop
     if (BLE.connected()) {
             WattCharacteristic.setValue(&watt,1);   // to send int value
-            DkkTodayCharacteristic.setValue("{pricestoday:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]");  // string mKr/kwhr
-            DkkTomorrowCharacteristic.setValue("{pricestomorrow:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]"); // string mKr/kwhr
-            WhrTodayCharacteristic.setValue("{WHr_today:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]"); // Whr used in the corrisponding hour
+            DkkTodayCharacteristic.setValue("{pricestoday:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}");  // string mKr/kwhr
+            DkkTomorrowCharacteristic.setValue("{pricestomorrow:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}"); // string mKr/kwhr
+            WhrTodayCharacteristic.setValue("{WHr_today:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}"); // Whr used in the corrisponding hour
         }
-
-
 */
+
+
 
 
 void ble_setup(void){

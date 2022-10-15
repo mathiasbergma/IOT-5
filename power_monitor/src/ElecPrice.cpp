@@ -9,13 +9,13 @@
 #include "application.h"
 #include <string>
 #include "BLE_include.h"
+//#define USE_MQTT
+
 void setup();
 void loop();
 void publishPrices(String prices);
 void publishPower(int currentPower);
-#line 7 "c:/Users/mikeh/vscode-particle/Power_monitor/power_monitor/src/ElecPrice.ino"
-#define USE_MQTT
-
+#line 9 "c:/Users/mikeh/vscode-particle/Power_monitor/power_monitor/src/ElecPrice.ino"
 #ifdef USE_MQTT
 #define MQTT_HOST "192.168.1.102"
 #define PORT 1883
@@ -30,7 +30,7 @@ void publishPower(int);
 // Declare objects
 PriceClass prices;
 Sensor wattSensor;
-MQTT mqttClient(MQTT_HOST, PORT, 512, 30, mqttCallback);
+//MQTT mqttClient(MQTT_HOST, PORT, 512, 30, mqttCallback);
 
 SYSTEM_THREAD(ENABLED);
 
@@ -73,7 +73,11 @@ void loop()
 
     if (wattSensor.checkForNewReading())
     {
-        publishPower(wattSensor.getCurrentReading());
+        //publishPower(wattSensor.getCurrentReading());
+        if (BLE.connected()) {
+            uint8_t buf = wattSensor.getCurrentReading();
+            WattCharacteristic.setValue(&buf,1); 
+        }
 
     }
 
@@ -92,7 +96,7 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
     // The MQTT client will call this function, when receiving a message on a subscribed topic.
     // This provides a way to send instructions - for example to trigger a price update.
 }
-
+/*
 void mqttKeepAlive()
 {
     if (mqttClient.isConnected())
@@ -105,6 +109,7 @@ void mqttKeepAlive()
         mqttClient.connect("sparkclient_" + String(Time.now()), "mqtt", "mqtt");
     }
 }
+*/
 
 void publishPrices(String prices)
 {
