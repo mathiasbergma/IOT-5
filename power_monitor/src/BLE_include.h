@@ -21,8 +21,8 @@ BleCharacteristic DkkTomorrowCharacteristic("DKK Today", BleCharacteristicProper
 BleCharacteristic WhrTodayCharacteristic("DKK Today", BleCharacteristicProperty::NOTIFY, WhrTodaycharacteristicUuid, powermonitorserviceUuid);
 
 
-bool device_connected = false;
-bool advertising_BLE = false;
+//bool device_connected = false; //not in use yet
+//bool advertising_BLE = false;  //not in use yet
 /*
     To send values do the following after setup
     if (BLE.connected()) {
@@ -48,6 +48,6 @@ void ble_setup(void){
     advData.appendLocalName(argonName);
     advData.appendServiceUUID(powermonitorserviceUuid);
     BLE.advertise(&advData);
-    Serial.println("Waiting for client connection...");
+    Serial.println("Waiting for BLEclient connection...");
 }
 
