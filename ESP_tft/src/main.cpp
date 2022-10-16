@@ -20,6 +20,7 @@
 
 #include <TFT_eSPI.h> // Hardware-specific library
 #include "defines.h"
+#include "BLE_include.h"
 
 int whr_count_now;
 int last_hr;
@@ -40,42 +41,20 @@ int reading = 0; // Value to be displayed
 int last_reading = 0;
 int d = 0; // Variable used for the sinewave test waveform
 
-void callback(char *topic, byte *message, unsigned int length)
-{
-  Serial.print("Message arrived on topic: ");
-  Serial.print(topic);
-  Serial.print("\n");
-  Serial.print(". Message: ");
-  String messageTemp;
-
-  for (int i = 0; i < length; i++)
-  {
-    Serial.print((char)message[i]);
-    messageTemp += (char)message[i];
-  }
-  JSONVar myObject = JSON.parse(messageTemp);
-  if (JSON.typeof(myObject) == "undefined")
-  {
-    Serial.println("Parsing input failed!");
-    return;
-  }
-  if (myObject.hasOwnProperty("calc_power"))
-  {
-    Serial.print("\nmyObject[\"calc_power\"] = ");
-
-    Serial.println((int)myObject["calc_power"]);
-    whr_count_now++;
-
-    power = (int)myObject["calc_power"];
-  }
-
-  // Feel free to add more if statements to control more GPIOs with MQTT
-}
 
 
 void setup(void)
 {
   Serial.begin(115200);
+
+  
+  Serial.println("Starting Arduino BLE Client application...");
+  BLEDevice::init("");
+
+  BLEScan *pBLEScan = BLEDevice::getScan();
+  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+  pBLEScan->setActiveScan(true);
+  pBLEScan->start(30);
 
   tft.init();
 
@@ -93,7 +72,26 @@ void setup(void)
 
 void loop()
 {
+  if (doConnect == true)
+  {
+    if (connectToServer(*pServerAddress))
+    {
+      Serial.println("We are now connected to the BLE Server.");
+      wattcharacteristic->getDescriptor(DescripterUUID)->writeValue((uint8_t *)notificationOn, 2, true);
+      Dkktodaycharacteristic->getDescriptor(DescripterUUID)->writeValue((uint8_t *)notificationOn, 2, true);
+      Dkktomorrowcharacteristic->getDescriptor(DescripterUUID)->writeValue((uint8_t *)notificationOn, 2, true);
+      WhrTodaycharacteristic->getDescriptor(DescripterUUID)->writeValue((uint8_t *)notificationOn, 2, true);
 
+      connected = true;
+      doConnect = false;
+    }
+    else
+    {
+      Serial.println("Failed to connect to server!");
+      doConnect = true;
+      connected = false;
+    }
+  }
   vTaskDelay(10 / portTICK_PERIOD_MS);
 
   // Draw a large meter

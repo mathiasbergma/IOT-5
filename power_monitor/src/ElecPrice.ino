@@ -4,6 +4,7 @@
 #include "application.h"
 #include <string>
 #include "BLE_include.h"
+
 //#define USE_MQTT
 
 #ifdef USE_MQTT
@@ -20,7 +21,7 @@ void publishPower(int);
 // Declare objects
 PriceClass prices;
 Sensor wattSensor;
-//MQTT mqttClient(MQTT_HOST, PORT, 512, 30, mqttCallback);
+// MQTT mqttClient(MQTT_HOST, PORT, 512, 30, mqttCallback);
 
 SYSTEM_THREAD(ENABLED);
 
@@ -63,12 +64,13 @@ void loop()
 
     if (wattSensor.checkForNewReading())
     {
-        //publishPower(wattSensor.getCurrentReading());
-        if (BLE.connected()) {
-            uint8_t buf = wattSensor.getCurrentReading();
-            WattCharacteristic.setValue(&buf,1); 
+        // publishPower(wattSensor.getCurrentReading());
+        if (BLE.connected())
+        {
+            std::string s = std::to_string(wattSensor.getCurrentReading());
+            WattCharacteristic.setValue(s,1);
+            WhrTodayCharacteristic.setValue("here is some text");
         }
-
     }
 
 #ifdef USE_MQTT
