@@ -77,8 +77,9 @@ void loop()
         // publishPower(wattSensor.getCurrentReading());
         if (BLE.connected())
         {
-            std::string s = std::to_string(wattSensor.getCurrentReading());
-            WattCharacteristic.setValue(s);
+            char buffer[255];
+            sprintf(buffer, "%d", wattSensor.getCurrentReading());;
+            WattCharacteristic.setValue(buffer);
             WhrTodayCharacteristic.setValue("here is some text");
         }
     }
