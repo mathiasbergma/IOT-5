@@ -78,9 +78,11 @@ void loop()
         if (BLE.connected())
         {
             char buffer[255];
-            sprintf(buffer, "%d", wattSensor.getCurrentReading());;
+            sprintf(buffer, "{\"watt\":%d}", wattSensor.getCurrentReading());;
             WattCharacteristic.setValue(buffer);
-            WhrTodayCharacteristic.setValue("here is some text");
+            DkkTodayCharacteristic.setValue("{\"pricestoday\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}");
+            DkkTomorrowCharacteristic.setValue("{\"pricestomorrow\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}");
+            WhrTodayCharacteristic.setValue("{\"WHr_today\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}");
         }
     }
 

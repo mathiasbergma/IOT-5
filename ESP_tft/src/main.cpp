@@ -25,15 +25,11 @@
 int whr_count_now;
 int last_hr;
 
-volatile int power;
-volatile double pricetoday[24];
-
 // prototypes
 int ringMeter(int value, int vmin, int vmax, int x, int y, int r, char *units, byte scheme);
 int update_ringMeter(int value_last, int value, int vmin, int vmax, int x, int y, int r, char *units, byte scheme);
 unsigned int rainbow(byte value);
-
-
+void graph(void);
 
 TFT_eSPI tft = TFT_eSPI(); // Invoke custom library
 
@@ -41,13 +37,10 @@ int reading = 0; // Value to be displayed
 int last_reading = 0;
 int d = 0; // Variable used for the sinewave test waveform
 
-
-
 void setup(void)
 {
   Serial.begin(115200);
 
-  
   Serial.println("Starting Arduino BLE Client application...");
   BLEDevice::init("");
 
@@ -68,39 +61,59 @@ void setup(void)
   reading = 1750;
   // Comment out above meters, then uncomment the next line to show large meter
   last_reading = ringMeter(reading, 0, 2000, xpos, ypos, radius, "Watts", GREEN2RED);
+
+  connect_argonpm();
 }
 
 void loop()
 {
-  if (doConnect == true)
+  if (!pClient->isConnected())
   {
-    if (connectToServer(*pServerAddress))
-    {
-      Serial.println("We are now connected to the BLE Server.");
-      wattcharacteristic->getDescriptor(DescripterUUID)->writeValue((uint8_t *)notificationOn, 2, true);
-      Dkktodaycharacteristic->getDescriptor(DescripterUUID)->writeValue((uint8_t *)notificationOn, 2, true);
-      Dkktomorrowcharacteristic->getDescriptor(DescripterUUID)->writeValue((uint8_t *)notificationOn, 2, true);
-      WhrTodaycharacteristic->getDescriptor(DescripterUUID)->writeValue((uint8_t *)notificationOn, 2, true);
-
-      connected = true;
-      doConnect = false;
-    }
-    else
-    {
-      Serial.println("Failed to connect to server!");
-      doConnect = true;
-      connected = false;
-    }
+    Serial.println("connection lost looking for new connection");
+    connect_argonpm();
   }
-  vTaskDelay(10 / portTICK_PERIOD_MS);
+  vTaskDelay(20 / portTICK_PERIOD_MS);
 
   // Draw a large meter
   int xpos = 5, ypos = 5, radius = 85;
   reading = power;
   // Comment out above meters, then uncomment the next line to show large meter
   last_reading = update_ringMeter(last_reading, reading, 0, 2000, xpos, ypos, radius, "Watts", GREEN2RED); // Draw analogue meter
+  graph();
 }
 
+
+void graph(void){
+  tft.setCursor(10, 10); // set the cursor
+  int posBlock[24];
+  int prevPosBlock[24];
+  int ddd[24];
+  int graphRange = 24;
+  int originX = 5;
+  int originY = 300;
+  int sizeY = 50;
+  int sizeX = 470;
+  int numberOfMarks = 24;
+  int boxSize = (sizeX / numberOfMarks);
+  for(int i = 0; i < 24; i++)
+  {
+    posBlock[i] = map(pricetoday[i], 0, graphRange, originY, (originY - sizeY));
+    ddd[i] = map(pricetoday[i],0, graphRange, sizeY,0);
+  }
+
+   // draw the blocks - draw only if value differs
+  for(int i = 0; i < 24; i++)
+  {
+    if(posBlock[i] > (prevPosBlock[i] + 2) || posBlock[i] < (prevPosBlock[i] - 2))
+    {
+      prevPosBlock[i] = posBlock[i];
+      tft.fillRect(originX+(i * boxSize), (originY - sizeY), (boxSize ), (ddd[i]), TFT_GREY);
+      delay(10);
+      tft.fillRect(originX+(i * boxSize), posBlock[i], (boxSize - 1), (originY - posBlock[i]), TFT_GREEN);
+    }
+  }
+
+}
 // #########################################################################
 //  Draw the meter on the screen, returns x coord of righthand side
 // #########################################################################
@@ -353,7 +366,7 @@ int update_ringMeter(int value_last, int value, int vmin, int vmax, int x, int y
                                                    if (r > 84) tft.drawCentreString(units, x, y + 30, 4); // Units display
                                                    else tft.drawCentreString(units, x, y + 5, 2); // Units display
                                                  */
- 
+
   return value;
 }
 // #########################################################################
@@ -396,5 +409,3 @@ unsigned int rainbow(byte value)
   }
   return (red << 11) + (green << 5) + blue;
 }
-
-
