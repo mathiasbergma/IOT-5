@@ -111,6 +111,9 @@ void graph(void){
       delay(10);
       tft.fillRect(originX+(i * boxSize), posBlock[i], (boxSize - 1), (originY - posBlock[i]), TFT_GREEN);
     }
+    char buf[4]; 
+    sprintf(buf,"%d", i);
+    tft.drawCentreString(buf, originX+ (boxSize/2)+boxSize*i, originY, 1);
   }
 
 }
