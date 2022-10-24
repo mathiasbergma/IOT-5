@@ -8,6 +8,7 @@
 #define CONFIG_BT_ENABLED
 volatile int power;
 volatile double pricetoday[24];
+int maxtoday=1;
 volatile double pricetomorrow[24];
 volatile double WHrToday_arr[24];
 
@@ -117,7 +118,7 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
 static void wattNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify)
 {
 
-    char buf[255] = "";
+    char buf[300] = "";
     for (size_t i = 0; i < length; i++)
     {
         buf[i] = pData[i];
@@ -144,7 +145,7 @@ static void wattNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharacteristic
 
 static void DkkTodayNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify)
 {
-    char buf[255] = "";
+    char buf[300] = "";
     for (size_t i = 0; i < length; i++)
     {
         buf[i] = pData[i];
@@ -166,13 +167,16 @@ static void DkkTodayNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharacteri
         {
             pricetoday[d] = myArray[d];
         }
+        maxtoday=myArray[24];
+        Serial.printf("%d",maxtoday);
+        Serial.println("\n");
     }
 }
 
 static void DkkTomorrowNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify)
 {
 
-    char buf[255] = "";
+    char buf[300] = "";
     for (size_t i = 0; i < length; i++)
     {
         buf[i] = pData[i];
@@ -198,7 +202,7 @@ static void DkkTomorrowNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharact
 }
 static void WhrTodayNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify)
 {
-    char buf[255] = "";
+    char buf[300] = "";
     for (size_t i = 0; i < length; i++)
     {
         buf[i] = pData[i];

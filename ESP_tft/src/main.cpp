@@ -41,6 +41,12 @@ void setup(void)
 {
   Serial.begin(115200);
 
+  tft.init();
+  tft.setRotation(1);
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.fillRect(120, 120, 240, 100, TFT_GREY);
+  tft.drawString("Starting bluetooth please wait...", 140, 160);
   Serial.println("Starting Arduino BLE Client application...");
   BLEDevice::init("");
 
@@ -49,15 +55,12 @@ void setup(void)
   pBLEScan->setActiveScan(true);
   pBLEScan->start(30);
 
-  tft.init();
-
-  tft.setRotation(1);
-
+  tft.fillScreen(TFT_BLACK);
+  tft.drawString("bluetooth Power monitor found   ", 140, 160);
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
   tft.fillScreen(TFT_BLACK);
 
-  vTaskDelay(500 / portTICK_PERIOD_MS);
-
-  int xpos = 5, ypos = 5, radius = 85;
+  int xpos = 5, ypos = 5, radius = 50;
   reading = 1750;
   // Comment out above meters, then uncomment the next line to show large meter
   last_reading = ringMeter(reading, 0, 2000, xpos, ypos, radius, "Watts", GREEN2RED);
@@ -75,18 +78,19 @@ void loop()
   vTaskDelay(20 / portTICK_PERIOD_MS);
 
   // Draw a large meter
-  int xpos = 5, ypos = 5, radius = 85;
+  int xpos = 5, ypos = 5, radius = 50;
   reading = power;
   // Comment out above meters, then uncomment the next line to show large meter
   last_reading = update_ringMeter(last_reading, reading, 0, 2000, xpos, ypos, radius, "Watts", GREEN2RED); // Draw analogue meter
   
-  
+  //graph on bottom
   int originX = 5;
   int originY = 310;
   int sizeY = 60;
   int sizeX = 470;
-  graph(originX, originY, &pricetoday[0], sizeX, sizeY, 24);
+  graph(originX, originY, &pricetoday[0], sizeX, sizeY, maxtoday);
 
+  //graph on top
   originX = 5;
   originY = 240;
   sizeY = 60;
@@ -109,6 +113,7 @@ void graph(int originX, int originY, volatile double values[24], int sizeX, int 
   int boxSize = (sizeX / numberOfMarks);
   for(int i = 0; i < 24; i++)
   {
+    //posBlock[i] = map(values[i], 0, graphRange, originY, (originY - sizeY));
     posBlock[i] = map(values[i], 0, graphRange, originY, (originY - sizeY));
     ddd[i] = map(values[i],0, graphRange, sizeY,0);
   }
