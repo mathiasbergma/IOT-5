@@ -2,7 +2,7 @@
 //       THIS IS A GENERATED FILE - DO NOT EDIT       //
 /******************************************************/
 
-#line 1 "c:/Users/mikeh/vscode-particle/Power_monitor/power_monitor/src/ElecPrice.ino"
+#line 1 "c:/Users/mikeh/IOT_Project/Power_monitor/power_monitor/src/ElecPrice.ino"
 #include "../lib/MQTT/src/MQTT.h"
 #include "PriceClass.h"
 #include "Sensor.h"
@@ -18,7 +18,7 @@ void setup();
 void loop();
 void publishPrices(String prices);
 void publishPower(int currentPower);
-#line 12 "c:/Users/mikeh/vscode-particle/Power_monitor/power_monitor/src/ElecPrice.ino"
+#line 12 "c:/Users/mikeh/IOT_Project/Power_monitor/power_monitor/src/ElecPrice.ino"
 #ifdef USE_MQTT
 #define MQTT_HOST "192.168.1.102"
 #define PORT 1883
