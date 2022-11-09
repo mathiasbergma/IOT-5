@@ -26,3 +26,7 @@ https://api.energidataservice.dk/dataset/Elspotprices?offset=0&start={{{year}}}-
 #### Response template 
 In Particle Webhook setup, use the following response template to extract the data needed:
 ***{{#records}}!{{HourDK}},{{SpotPriceDKK}}{{/records}}***
+
+
+#### Deployment diagram
+![alt text](https://github.com/mathiasbergma/Power_monitor/blob/master/UML_Deployment3.jpg)
