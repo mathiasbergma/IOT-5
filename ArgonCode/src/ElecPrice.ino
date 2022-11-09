@@ -4,6 +4,7 @@
 #include "cost_calc.h"
 #include "state_variables.h"
 #include "mDNSResolver.h"
+#include "BLE_include.h"
 
 
 //#define STATEDEBUG 1
@@ -61,6 +62,9 @@ void setup()
 {
     // Particle.connect();
     init_GPIO();
+
+    // setup BLE
+    ble_setup();
 
     state = STARTUP;
 #ifdef STATEDEBUG
