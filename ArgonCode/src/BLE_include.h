@@ -1,24 +1,30 @@
 
 #include "particle.h"
 const char* argonName = "ArgonPM";
-const char* serviceUuid     = "3f1a1596-ee7f-42bd-84d1-b1a294f82ecf";
-const char* watt            = "b4250401-fb4b-4746-b2b0-93f0e61122c6"; 
-const char* DkkToday        = "b4250402-fb4b-4746-b2b0-93f0e61122c6"; 
-const char* DkkTomorrow     = "b4250403-fb4b-4746-b2b0-93f0e61122c6";
-const char* WhrToday        = "b4250404-fb4b-4746-b2b0-93f0e61122c6";
+const char* serviceUuid_c     = "3f1a1596-ee7f-42bd-84d1-b1a294f82ecf";
+const char* watt_c           = "b4250401-fb4b-4746-b2b0-93f0e61122c6";
+const char* DkkYesterday_c    = "b4250406-fb4b-4746-b2b0-93f0e61122c6";
+const char* DkkToday_c        = "b4250402-fb4b-4746-b2b0-93f0e61122c6"; 
+const char* DkkTomorrow_c     = "b4250403-fb4b-4746-b2b0-93f0e61122c6";
+const char* WhrToday_c        = "b4250404-fb4b-4746-b2b0-93f0e61122c6";
+const char* WhrYesterday_c    = "b4250405-fb4b-4746-b2b0-93f0e61122c6";
 
-const BleUuid powermonitorserviceUuid(serviceUuid);
+const BleUuid powermonitorserviceUuid(serviceUuid_c);
 
-const BleUuid wattcharacteristicUuid(watt);
-const BleUuid DkktodaycharacteristicUuid(DkkToday);
-const BleUuid DkktomorrowcharacteristicUuid(DkkTomorrow);
-const BleUuid WhrTodaycharacteristicUuid (WhrToday);
+const BleUuid wattcharacteristicUuid(watt_c);
+const BleUuid DkkyesterdaycharacteristicUuid(DkkYesterday_c);
+const BleUuid DkktodaycharacteristicUuid(DkkToday_c);
+const BleUuid DkktomorrowcharacteristicUuid(DkkTomorrow_c);
+const BleUuid WhrTodaycharacteristicUuid (WhrToday_c);
+const BleUuid WhrYesterdayCharacteristicUuid(WhrYesterday_c);
 
 
 BleCharacteristic WattCharacteristic("Watt now", BleCharacteristicProperty::NOTIFY, wattcharacteristicUuid, powermonitorserviceUuid);
+BleCharacteristic DkkYesterdayCharacteristic("DKK Yesterday", BleCharacteristicProperty::NOTIFY, DkkyesterdaycharacteristicUuid, powermonitorserviceUuid);
 BleCharacteristic DkkTodayCharacteristic("DKK Today", BleCharacteristicProperty::NOTIFY, DkktodaycharacteristicUuid, powermonitorserviceUuid);
-BleCharacteristic DkkTomorrowCharacteristic("DKK Today", BleCharacteristicProperty::NOTIFY, DkktomorrowcharacteristicUuid, powermonitorserviceUuid);
-BleCharacteristic WhrTodayCharacteristic("DKK Today", BleCharacteristicProperty::NOTIFY, WhrTodaycharacteristicUuid, powermonitorserviceUuid);
+BleCharacteristic DkkTomorrowCharacteristic("DKK Tomorrow", BleCharacteristicProperty::NOTIFY, DkktomorrowcharacteristicUuid, powermonitorserviceUuid);
+BleCharacteristic WhrTodayCharacteristic("Whr Today", BleCharacteristicProperty::NOTIFY, WhrTodaycharacteristicUuid, powermonitorserviceUuid);
+BleCharacteristic WhrYesterdayCharacteristic("Whr Yesterday", BleCharacteristicProperty::NOTIFY, WhrYesterdayCharacteristicUuid, powermonitorserviceUuid);
 
 
 //bool device_connected = false; //not in use yet
