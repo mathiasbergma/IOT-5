@@ -155,6 +155,10 @@ void loop()
         char values[16];
         sprintf(values, "%d", calc_power);
         client.publish("power", values);
+        char buffer[255];
+        sprintf(buffer, "{\"watt\":%d}", calc_power);
+        WattCharacteristic.setValue(buffer);
+
 #ifdef STATEDEBUG
         digitalWrite(state, LOW);
 #endif
