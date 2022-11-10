@@ -2,24 +2,24 @@
 //       THIS IS A GENERATED FILE - DO NOT EDIT       //
 /******************************************************/
 
-#line 1 "c:/Users/mathi/Desktop/IOT/ElecPrice/src/ElecPrice.ino"
+#line 1 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
 #include "string.h"
 #include "application.h"
 #include "../lib/MQTT/src/MQTT.h"
 #include "cost_calc.h"
 #include "state_variables.h"
 #include "mDNSResolver.h"
+#include "BLE_include.h"
 
+
+//#define STATEDEBUG 1
 
 void setup();
-void myHandler(const char *event, const char *data);
-void myPriceHandler(const char *event, const char *data);
 void loop();
+void BLEOnConnectcallback(const BlePeerDevice& peer, void* context);
 void transmit_prices(int start_stop[12][2], int size);
 void check_time(void);
-#line 9 "c:/Users/mathi/Desktop/IOT/ElecPrice/src/ElecPrice.ino"
-#define STATEDEBUG 1
-
+#line 12 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
 #define KW_SENSOR_PIN D8
 #define WATT_CONVERSION_CONSTANT 3600000
 #define HOST "192.168.0.103"
@@ -37,7 +37,8 @@ double cost[MAX_RANGE];
 int cost_hour[MAX_RANGE];
 int range = MAX_RANGE; // Max received count. Updated if received count is smaller
 char temp[5 * 513];    // Create an array that can hold the entire transmission
-
+bool NewBLEConnection =  false;
+int last_connect = 0;
 int calc_power;
 
 const struct transport_t
@@ -53,6 +54,9 @@ void handle_sensor(void);
 void check_mqtt(void);
 void init_GPIO(void);
 void transmit_prices(int start_stop[12][2], int cnt);
+void handle_sensor(void);
+void myHandler(const char *event, const char *data);
+void myPriceHandler(const char *event, const char *data);
 
 // Callback function for MQTT transmission
 void callback(char *topic, byte *payload, unsigned int length);
@@ -64,14 +68,15 @@ SystemSleepConfiguration config;
 UDP udp;
 mDNSResolver::Resolver resolver(udp);
 
-
-
 SYSTEM_THREAD(ENABLED);
 
 void setup()
 {
     // Particle.connect();
     init_GPIO();
+
+    // setup BLE
+    ble_setup();
 
     state = STARTUP;
 #ifdef STATEDEBUG
@@ -117,6 +122,76 @@ void setup()
 
     // Setup low power mode
     // config.mode(SystemSleepMode::ULTRA_LOW_POWER).gpio(KW_SENSOR_PIN, RISING).network(NETWORK_INTERFACE_ALL);
+}
+
+void loop()
+{
+    static int start_stop[12][2] = {0};
+    static int cnt = 0;
+    // Note: Change to be hour based so device can sleep longer
+    // wakeup on interrupt but go back to sleep again.
+    // Check what time it is
+    check_time();
+
+    //check_mqtt();
+
+    // Is it time to update the prices or has it been requested?
+    if (state == GET_DATA)
+    {
+#ifdef STATEDEBUG
+        digitalWrite(state, LOW);
+#endif
+        state = AWAITING_DATA;
+#ifdef STATEDEBUG
+        digitalWrite(state, HIGH);
+#endif
+        get_data(Time.day());
+    }
+
+    // Has the prices for today arrived?
+    if (state == CALCULATE)
+    {
+        cnt = calc_low(start_stop, cost, cost_hour, range);
+        Serial.printf("Current HH:MM: %02d:%02d\n", Time.hour() + 2, Time.minute());
+    }
+
+    if (state == TRANSMIT_PRICE)
+    {
+        transmit_prices(start_stop, cnt);
+    }
+
+    if (state == TRANSMIT_SENSOR) // Did we receive a request for updated values
+    {
+        Serial.printf("Received power/get\n");
+        char values[16];
+        sprintf(values, "%d", calc_power);
+        client.publish("power", values);
+#ifdef STATEDEBUG
+        digitalWrite(state, LOW);
+#endif
+        state = SLEEP_STATE;
+#ifdef STATEDEBUG
+        digitalWrite(state, HIGH);
+#endif
+    }
+
+    if(NewBLEConnection & ((millis()-last_connect)>1400)){
+        //send everything relavant on new connect
+        // needs a bit og delay to ensure device is ready
+        //WattCharacteristic.setValue(300,1);   // to send int value
+        
+        DkkTodayCharacteristic.setValue("{\"pricestoday\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,24]}");  // string mKr/kwhr
+        DkkTomorrowCharacteristic.setValue("{\"pricestomorrow\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}"); // string mKr/kwhr
+        WhrTodayCharacteristic.setValue("{\"WHr_today\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}"); // Whr used in the corrisponding hour
+        NewBLEConnection = false;
+        Serial.printf("ble_connected");
+    }
+
+}
+
+void BLEOnConnectcallback(const BlePeerDevice& peer, void* context){
+    NewBLEConnection = true;
+    last_connect = millis();
 }
 
 void handle_sensor(void)
@@ -225,57 +300,6 @@ void myPriceHandler(const char *event, const char *data)
 #endif
 }
 
-void loop()
-{
-    static int start_stop[12][2] = {0};
-    static int cnt = 0;
-    // Note: Change to be hour based so device can sleep longer
-    // wakeup on interrupt but go back to sleep again.
-    // Check what time it is
-    check_time();
-
-    check_mqtt();
-
-    // Is it time to update the prices or has it been requested?
-    if (state == GET_DATA)
-    {
-#ifdef STATEDEBUG
-        digitalWrite(state, LOW);
-#endif
-        state = AWAITING_DATA;
-#ifdef STATEDEBUG
-        digitalWrite(state, HIGH);
-#endif
-        get_data(Time.day());
-    }
-
-    // Has the prices for today arrived?
-    if (state == CALCULATE)
-    {
-        cnt = calc_low(start_stop, cost, cost_hour, range);
-        Serial.printf("Current HH:MM: %02d:%02d\n", Time.hour() + 2, Time.minute());
-    }
-
-    if (state == TRANSMIT_PRICE)
-    {
-        transmit_prices(start_stop, cnt);
-    }
-
-    if (state == TRANSMIT_SENSOR) // Did we receive a request for updated values
-    {
-        Serial.printf("Received power/get\n");
-        char values[16];
-        sprintf(values, "%d", calc_power);
-        client.publish("power", values);
-#ifdef STATEDEBUG
-        digitalWrite(state, LOW);
-#endif
-        state = SLEEP_STATE;
-#ifdef STATEDEBUG
-        digitalWrite(state, HIGH);
-#endif
-    }
-}
 void init_GPIO(void)
 {
     pinMode(SENSOR_READ, OUTPUT);
@@ -298,6 +322,7 @@ void callback(char *topic, byte *payload, unsigned int length)
     digitalWrite(state, HIGH);
 #endif
 }
+
 
 /** @brief Reconnects MQTT client if disconnected
  */

@@ -26,7 +26,8 @@ double cost[MAX_RANGE];
 int cost_hour[MAX_RANGE];
 int range = MAX_RANGE; // Max received count. Updated if received count is smaller
 char temp[5 * 513];    // Create an array that can hold the entire transmission
-
+bool NewBLEConnection =  false;
+int last_connect = 0;
 int calc_power;
 
 const struct transport_t
@@ -121,7 +122,7 @@ void loop()
     // Check what time it is
     check_time();
 
-    check_mqtt();
+    //check_mqtt();
 
     // Is it time to update the prices or has it been requested?
     if (state == GET_DATA)
@@ -162,6 +163,24 @@ void loop()
         digitalWrite(state, HIGH);
 #endif
     }
+
+    if(NewBLEConnection & ((millis()-last_connect)>1400)){
+        //send everything relavant on new connect
+        // needs a bit og delay to ensure device is ready
+        //WattCharacteristic.setValue(300,1);   // to send int value
+        
+        DkkTodayCharacteristic.setValue("{\"pricestoday\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,24]}");  // string mKr/kwhr
+        DkkTomorrowCharacteristic.setValue("{\"pricestomorrow\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}"); // string mKr/kwhr
+        WhrTodayCharacteristic.setValue("{\"WHr_today\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}"); // Whr used in the corrisponding hour
+        NewBLEConnection = false;
+        Serial.printf("ble_connected");
+    }
+
+}
+
+void BLEOnConnectcallback(const BlePeerDevice& peer, void* context){
+    NewBLEConnection = true;
+    last_connect = millis();
 }
 
 void handle_sensor(void)

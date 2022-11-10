@@ -196,7 +196,7 @@
  .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/TFT_eSPI.h \
  .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/User_Setup_Select.h \
  .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/User_Setup.h \
- .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/TFT_Drivers/ILI9341_Defines.h \
+ .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/TFT_Drivers/ILI9488_Defines.h \
  .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/Processors/TFT_eSPI_ESP32.h \
  C:/Users/mikeh/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/soc/esp32/include/soc/spi_reg.h \
  C:/Users/mikeh/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/spi_master.h \
@@ -281,6 +281,7 @@
  .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/Fonts/Custom/Roboto_Thin_24.h \
  .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/Fonts/Custom/Satisfy_24.h \
  .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/Fonts/Custom/Yellowtail_32.h \
+ .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/Extensions/Touch.h \
  .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/Extensions/Smooth_font.h \
  .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/Extensions/Button.h \
  .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/Extensions/Sprite.h \

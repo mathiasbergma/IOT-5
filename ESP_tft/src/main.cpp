@@ -53,11 +53,13 @@ void setup(void)
   BLEScan *pBLEScan = BLEDevice::getScan();
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
   pBLEScan->setActiveScan(true);
-  pBLEScan->start(30);
+  pBLEScan->start(10);
+  connect_argonpm();
 
   tft.fillScreen(TFT_BLACK);
   tft.drawString("bluetooth Power monitor found   ", 140, 160);
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
+  
+  vTaskDelay(500 / portTICK_PERIOD_MS);
   tft.fillScreen(TFT_BLACK);
 
   int xpos = 5, ypos = 5, radius = 50;
@@ -65,7 +67,7 @@ void setup(void)
   // Comment out above meters, then uncomment the next line to show large meter
   last_reading = ringMeter(reading, 0, 2000, xpos, ypos, radius, "Watts", GREEN2RED);
 
-  connect_argonpm();
+  
 }
 
 void loop()

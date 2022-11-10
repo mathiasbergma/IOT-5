@@ -53,7 +53,7 @@ bool connectToServer(BLEAddress pAddress)
         Serial.println("failed connection");
         return (false);
     }
-    Serial.println(" - Connected successfully to server");
+    //Serial.println(" - Connected successfully to server");
 
     BLERemoteService *pRemoteService = pClient->getService(serviceUuid);
 
@@ -74,7 +74,7 @@ bool connectToServer(BLEAddress pAddress)
         Serial.print("Failed to find our characteristic UUID");
         return false;
     }
-    Serial.println(" Characteristics Found!");
+    //Serial.println(" Characteristics Found!");
 
     wattcharacteristic->registerForNotify(wattNotifyCallback);
     Dkktodaycharacteristic->registerForNotify(DkkTodayNotifyCallback);
@@ -87,7 +87,7 @@ void connect_argonpm(void)
 {
     if (connectToServer(*pServerAddress))
     {
-        Serial.println("We are now connected to the BLE Server.");
+        //Serial.println("We are now connected to the BLE Server.");
         wattcharacteristic->getDescriptor(DescripterUUID)->writeValue((uint8_t *)notificationOn, 2, true);
         Dkktodaycharacteristic->getDescriptor(DescripterUUID)->writeValue((uint8_t *)notificationOn, 2, true);
         Dkktomorrowcharacteristic->getDescriptor(DescripterUUID)->writeValue((uint8_t *)notificationOn, 2, true);
