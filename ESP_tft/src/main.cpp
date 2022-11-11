@@ -36,6 +36,8 @@ TFT_eSPI tft = TFT_eSPI(); // Invoke custom library
 int reading = 0; // Value to be displayed
 int last_reading = 0;
 int d = 0; // Variable used for the sinewave test waveform
+//ring dial settings
+int xpos = 5, ypos = 5, radius = 60;
 
 void setup(void)
 {
@@ -65,7 +67,6 @@ void setup(void)
   vTaskDelay(500 / portTICK_PERIOD_MS);
   tft.fillScreen(TFT_BLACK);
 
-  int xpos = 5, ypos = 5, radius = 50;
   reading = 5;
   // Comment out above meters, then uncomment the next line to show large meter
   last_reading = ringMeter(reading, 0, 2000, xpos, ypos, radius, "Watts", GREEN2RED);
@@ -82,8 +83,6 @@ void loop()
   }
   vTaskDelay(20 / portTICK_PERIOD_MS);
 
-  // Draw a large meter
-  int xpos = 5, ypos = 5, radius = 50;
   reading = power;
   // Comment out above meters, then uncomment the next line to show large meter
   last_reading = update_ringMeter(last_reading, reading, 0, 2000, xpos, ypos, radius, "Watts", GREEN2RED); // Draw analogue meter
@@ -114,7 +113,7 @@ void loop()
   graph(originX, originY, &pricetoday[0], sizeX, sizeY, "Kr/KWhr");
 
 
-  tft.drawString("buf2",200 ,5 , 4);
+  tft.drawString("buf2",xpos+radius*2 ,5 , 4);
 
 
 }
