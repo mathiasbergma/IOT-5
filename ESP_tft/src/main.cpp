@@ -114,6 +114,9 @@ void loop()
   graph(originX, originY, &pricetoday[0], sizeX, sizeY, "Kr/KWhr");
 
 
+  tft.drawString("buf2",200 ,5 , 4);
+
+
 }
 
 
@@ -353,9 +356,13 @@ int update_ringMeter(int value_last, int value, int vmin, int vmax, int x, int y
     {
       value = target;
     }
+    else if((value_last) > vmax)
+    {
+      value = vmax;
+    }
     else
     {
-      value = value_last - 20;
+      value = value_last - 75;
     }
   }
   int v = map(value, vmin, vmax, -angle, angle); // Map the value to an angle v
