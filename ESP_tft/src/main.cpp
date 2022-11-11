@@ -29,7 +29,7 @@ int last_hr;
 int ringMeter(int value, int vmin, int vmax, int x, int y, int r, char *units, byte scheme);
 int update_ringMeter(int value_last, int value, int vmin, int vmax, int x, int y, int r, char *units, byte scheme);
 unsigned int rainbow(byte value);
-void graph(int originX, int originY, volatile double values[24], int sizeX, int sizeY, int Maxvalue);
+void graph(int originX, int originY, volatile double values[24], int sizeX, int sizeY, char *units, byte scheme = 4);
 
 TFT_eSPI tft = TFT_eSPI(); // Invoke custom library
 
@@ -49,13 +49,16 @@ void setup(void)
   tft.drawString("Starting bluetooth please wait...", 140, 160);
   Serial.println("Starting Arduino BLE Client application...");
   BLEDevice::init("");
+  vTaskDelay(400/portTICK_PERIOD_MS);
 
   BLEScan *pBLEScan = BLEDevice::getScan();
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
   pBLEScan->setActiveScan(true);
-  pBLEScan->start(10);
+  pBLEScan->start(30);
+  Serial.println("starting argon connect");
+  vTaskDelay(400/portTICK_PERIOD_MS);
   connect_argonpm();
-
+  Serial.println("exited argon connect");
   tft.fillScreen(TFT_BLACK);
   tft.drawString("bluetooth Power monitor found   ", 140, 160);
   
@@ -63,7 +66,7 @@ void setup(void)
   tft.fillScreen(TFT_BLACK);
 
   int xpos = 5, ypos = 5, radius = 50;
-  reading = 1750;
+  reading = 5;
   // Comment out above meters, then uncomment the next line to show large meter
   last_reading = ringMeter(reading, 0, 2000, xpos, ypos, radius, "Watts", GREEN2RED);
 
@@ -84,33 +87,61 @@ void loop()
   reading = power;
   // Comment out above meters, then uncomment the next line to show large meter
   last_reading = update_ringMeter(last_reading, reading, 0, 2000, xpos, ypos, radius, "Watts", GREEN2RED); // Draw analogue meter
-  
-  //graph on bottom
-  int originX = 5;
-  int originY = 310;
-  int sizeY = 60;
-  int sizeX = 470;
-  graph(originX, originY, &pricetoday[0], sizeX, sizeY, maxtoday);
 
   //graph on top
+  int originX = 5;
+  int originY = 210;
+  int sizeY = 40;
+  int sizeX = 400;
+  double DKK_calc[24];
+  for(int i =0; i<24; i++){
+    DKK_calc[i]= WHrToday_arr[i]*pricetoday[i];
+  }
+  graph(originX, originY, &DKK_calc[0], sizeX, sizeY, "DKK"); 
+
+  //graph in middle
   originX = 5;
-  originY = 240;
-  sizeY = 60;
-  sizeX = 470;
-  graph(originX, originY, &WHrToday_arr[0], sizeX, sizeY, 24);
+  originY = 260;
+  sizeY = 40;
+  sizeX = 400;
+  graph(originX, originY, &WHrToday_arr[0], sizeX, sizeY, "KWhr");
+
+  //graph on bottom
+  originX = 5;
+  originY = 310;
+  sizeY = 40;
+  sizeX = 400;
+  graph(originX, originY, &pricetoday[0], sizeX, sizeY, "Kr/KWhr");
+
+
 }
 
 
-void graph(int originX, int originY, volatile double values[24], int sizeX, int sizeY, int Maxvalue){
+void graph(int originX, int originY, volatile double values[24], int sizeX, int sizeY, char *units, byte scheme){
   tft.setCursor(10, 10); // set the cursor
   int posBlock[24];
   int ddd[24];
-  int graphRange = Maxvalue;
+  int graphRange = 0; //Maxvalue;
+  int minvalue = 99999;
+  int maxpos= 0;
+  int minpos= 0;
   /*
   int originX = 5;
   int originY = 300;
   int sizeY = 50;
   int sizeX = 470;*/
+  for(int i=0; i<24; i++)
+  {
+    if (values[i] > graphRange){
+      graphRange = values[i];
+      maxpos = i;
+    }
+    if (values[i]< minvalue){
+      minvalue = values[i];
+      minpos = i;
+    }
+
+  }
   int numberOfMarks = 24;
   int boxSize = (sizeX / numberOfMarks);
   for(int i = 0; i < 24; i++)
@@ -123,14 +154,68 @@ void graph(int originX, int originY, volatile double values[24], int sizeX, int 
    // draw the blocks - draw only if value differs
   for(int i = 0; i < 24; i++)
   {
+    // Choose colour from scheme
+    int colour = 0;
+    switch (scheme)    
+      {
+        case 0:
+          colour = TFT_RED;
+          break; // Fixed colour
+        case 1:
+          colour = TFT_GREEN;
+          break; // Fixed colour
+        case 2:
+          colour = TFT_BLUE;
+          break; // Fixed colour
+        case 3:
+          colour = rainbow(map(values[i], minvalue, graphRange, 0, 127));
+          break; // Full spectrum blue to red
+        case 4:
+          colour = rainbow(map(values[i], minvalue, graphRange, 63, 127));
+          break; // Green to red (high temperature etc)
+        case 5:
+          colour = rainbow(map(values[i], minvalue, graphRange, 127, 63));
+          break; // Red to green (low battery etc)
+        default:
+          colour = TFT_BLUE;
+          break; // Fixed colour
+      }
+      
+
       tft.fillRect(originX+(i * boxSize), (originY - sizeY), (boxSize ), (ddd[i]), TFT_GREY);
-      delay(10);
-      tft.fillRect(originX+(i * boxSize), posBlock[i], (boxSize - 1), (originY - posBlock[i]), TFT_GREEN);
-    
+      tft.fillRect(originX+(i * boxSize), posBlock[i], (boxSize - 1), (originY - posBlock[i]), colour);
+
+      //delay(10);
+      /*
+      if (i==minpos){
+        if(!invert){
+          tft.fillRect(originX+(i * boxSize), posBlock[i], (boxSize - 1), (originY - posBlock[i]), TFT_GREEN);
+        }
+        else{
+          tft.fillRect(originX+(i * boxSize), posBlock[i], (boxSize - 1), (originY - posBlock[i]), TFT_RED);
+        }
+        
+      }
+      else if (i == maxpos){
+        tft.fillRect(originX+(i * boxSize), posBlock[i], (boxSize - 1), (originY - posBlock[i]), TFT_RED);
+      }
+      else{
+        tft.fillRect(originX+(i * boxSize), posBlock[i], (boxSize - 1), (originY - posBlock[i]), TFT_CYAN);
+      }
+      */
     char buf[4]; 
     sprintf(buf,"%d", i);
     tft.drawCentreString(buf, originX+ (boxSize/2)+boxSize*i, originY, 1);
   }
+
+    char buf[20]; 
+    sprintf(buf,"MAX: %d", graphRange);
+    tft.drawString(buf, originX+ sizeX-boxSize, originY - sizeY, 2);
+    char buf2[20]; 
+    sprintf(buf2,"MIN: %d", minvalue);
+    tft.drawString(buf2, originX+ sizeX-boxSize, originY - 10, 2);
+    
+    tft.drawString(units, originX+ sizeX-boxSize, originY - (sizeY/2)-5, 2);
 
 }
 // #########################################################################
