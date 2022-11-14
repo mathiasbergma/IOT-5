@@ -10,53 +10,59 @@
 #include "state_variables.h"
 #include "mDNSResolver.h"
 #include "BLE_include.h"
+#include <fcntl.h>
+#include "price_handler.h"
 
 
 //#define STATEDEBUG 1
 void setup();
 void loop();
+void timer_callback();
+void init_memory();
+void rotate_prices();
 void BLEOnConnectcallback(const BlePeerDevice& peer, void* context);
 void transmit_prices(int start_stop[12][2], int size);
 void check_time(void);
-#line 11 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
+#line 13 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
 #define USEMQTT
 
 #define KW_SENSOR_PIN D8
 #define WATT_CONVERSION_CONSTANT 3600000
 #define HOST "192.168.0.103"
 #define PORT 1883
-#define PULL_TIME_1 23
-#define PULL_TIME_2 11
-#define MAX_RANGE 48
+#define PULL_TIME_1 13
+#define PULL_TIME_2 0
+
 #define MAX_TRANSMIT_BUFF 128
 #define SLEEP_DURATION 30000
+
+Timer timer(60000, timer_callback);
 
 statemachine state;
 
 int oneShotGuard = -1;
+int oneShotGuard2 = -1;
 double cost[MAX_RANGE];
-int cost_hour[MAX_RANGE];
-int range = MAX_RANGE; // Max received count. Updated if received count is smaller
-char temp[5 * 513];    // Create an array that can hold the entire transmission
+int * wh_yesterday;
+int * wh_today;
+
+ int fd_today;
+
 bool NewBLEConnection =  false;
 int last_connect = 0;
 int calc_power;
 
-const struct transport_t
-{
-    double high = 1.9135;
-    double medium = 0.6379;
-    double low = 0.2127;
-}transport;
 
 //int calc_low(int **low_price_intervals);
+
+void timer_callback(void);
+void init_memory(void);
 void get_data(int day);
 void handle_sensor(void);
 void check_mqtt(void);
 void init_GPIO(void);
 void transmit_prices(int start_stop[12][2], int cnt);
 void handle_sensor(void);
-void myHandler(const char *event, const char *data);
 void myPriceHandler(const char *event, const char *data);
 
 #ifdef USEMQTT
@@ -81,6 +87,9 @@ void setup()
     // setup BLE
     ble_setup();
 
+    // Initialize memory
+    init_memory();
+
     state = STARTUP;
 #ifdef STATEDEBUG
     digitalWrite(state, LOW);
@@ -93,19 +102,20 @@ void setup()
 #ifdef STATEDEBUG
     digitalWrite(state, HIGH);
 #endif
+
+    Time.zone(1);
+    Time.beginDST();
     
     pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                // Setup pinmode for LDR pin
     attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING); // Attach interrup that will be called when rising
 #ifdef USEMQTT
+    // Resolve MQTT broker IP address
     IPAddress IP = resolver.search("homeassistant.local");
-    
-    Particle.publish("HA IP", IP.toString());
-
     client.setBroker(IP.toString(), PORT);
 #endif
+
     // Subscribe to the integration response event
     Particle.subscribe("prices", myHandler, MY_DEVICES);
-    Particle.subscribe("get_prices", myPriceHandler, MY_DEVICES);
 
     // Publish state variable to Particle cloud
     Particle.variable("State", state);
@@ -132,10 +142,7 @@ void loop()
 {
     static int start_stop[12][2] = {0};
     static int cnt = 0;
-    // Note: Change to be hour based so device can sleep longer
-    // wakeup on interrupt but go back to sleep again.
-    // Check what time it is
-    check_time();
+
 #ifdef USEMQTT
     check_mqtt();
 #endif
@@ -156,8 +163,9 @@ void loop()
     // Has the prices for today arrived?
     if (state == CALCULATE)
     {
-        cnt = calc_low(start_stop, cost, cost_hour, range);
+        cnt = calc_low(start_stop, cost_today, cost_hour, range);
         Serial.printf("Current HH:MM: %02d:%02d\n", Time.hour() + 2, Time.minute());
+        state = TRANSMIT_PRICE;
     }
 
     if (state == TRANSMIT_PRICE)
@@ -186,6 +194,12 @@ void loop()
 #endif
     }
 
+    if (state == ROTATE)
+    {
+        rotate_prices();
+        state = SLEEP_STATE;
+    }
+
     if(NewBLEConnection & ((millis()-last_connect)>1400)){
         //send everything relavant on new connect
         //needs a bit og delay to ensure device is ready
@@ -202,6 +216,43 @@ void loop()
         Serial.printf("ble_connected");
     }
 
+}
+void timer_callback()
+{
+    check_time();
+}
+void init_memory()
+{
+    // Allocate for the prices
+    cost_yesterday = (double *) malloc(MAX_RANGE * sizeof(double));
+    cost_today  = (double *) malloc(MAX_RANGE * sizeof(double));
+    cost_tomorrow = (double *) malloc(MAX_RANGE * sizeof(double));
+    wh_today = (int *) malloc(MAX_RANGE * sizeof(int));
+    wh_yesterday = (int *) malloc(MAX_RANGE * sizeof(int));
+    // Set all values to 0
+    memset(cost_yesterday, 0, MAX_RANGE * sizeof(double));
+    memset(cost_today, 0, MAX_RANGE * sizeof(double));
+    memset(cost_tomorrow, 0, MAX_RANGE * sizeof(double));
+    memset(wh_today, 0, MAX_RANGE * sizeof(int));
+    memset(wh_yesterday, 0, MAX_RANGE * sizeof(int));
+
+    // Hent indhold af filer, så vi har gemte data i tilfælde af reboot
+   fd_today = open("/sd/prices_today.txt", O_RDWR | O_CREAT);
+}
+void rotate_prices()
+{
+    // Rotate prices so that we can use the same array for all days
+    double *temp = cost_yesterday;
+    cost_yesterday = cost_today;
+    cost_today = cost_tomorrow;
+    cost_tomorrow = temp;
+
+    for (int i = 0; i < MAX_RANGE; i++)
+    {
+        cost_tomorrow[i] = 0;
+    }
+
+    // Opdater filer med nye priser
 }
 
 void BLEOnConnectcallback(const BlePeerDevice& peer, void* context){
@@ -237,82 +288,6 @@ void handle_sensor(void)
         digitalWrite(state, HIGH);
 #endif
     }
-}
-
-void myHandler(const char *event, const char *data)
-{
-    bool populate = false; // Entire transmission received flag
-
-    /* When transmissions are greater than 512 bytes, it will be split into 512
-     * byte parts. The final transmission part should therefore be less than 512.
-     * Save transmission size into variable so we can act on it
-     */
-    int transmission_size = strlen(data);
-
-    // "eventname/<transmission part no>"
-    char event_str[12];
-    strcpy(event_str, event);
-
-    // Token used for strtok()
-    char *token = NULL;
-    // Extract the numbered part of eventname and use it for indexing "temp"
-    strcat(&temp[atoi(strtok(event_str, "prices/")) * 512], data);
-    // If transmission size is less than 512 = last transmission received
-    if (transmission_size < 512)
-    {
-        populate = true;
-    }
-
-    if (populate)
-    {
-        // Display what has been received
-        Serial.printf("%s\n", temp);
-
-        // Tokenize the string. i.e. split the string so we can get to the data
-        token = strtok(temp, ",!");
-        for (int i = 0; i < range; i++)
-        {
-            // Save hour and cost in differen containers
-            sscanf(token, "%*d-%*d-%*dT%d:%*d:%*d", &cost_hour[i]);
-            token = strtok(NULL, ",!");
-            if (cost_hour[i] >= 0 && cost_hour[i] < 7)
-            {
-                 cost[i] = (atof(token) / 1000)+transport.low;
-            }
-            else if (cost_hour[i] > 16 && cost_hour[i] < 22)
-            {
-                cost[i] = (atof(token) / 1000)+transport.high;
-            }
-            else
-            {
-                cost[i] = (atof(token) / 1000)+transport.medium;
-            }
-
-            if ((token = strtok(NULL, ",!")) == NULL) // Received data count is less than 48.
-            {
-                range = i; // Update range, such that the rest of program flow is aware of size
-                break;     // Break the while loop
-            }
-        }
-#ifdef STATEDEBUG
-        digitalWrite(state, LOW);
-#endif
-        state = CALCULATE;
-#ifdef STATEDEBUG
-        digitalWrite(state, HIGH);
-#endif
-    }
-}
-
-void myPriceHandler(const char *event, const char *data)
-{
-#ifdef STATEDEBUG
-    digitalWrite(state, LOW);
-#endif
-    state = GET_DATA;
-#ifdef STATEDEBUG
-    digitalWrite(state, HIGH);
-#endif
 }
 
 void init_GPIO(void)
@@ -358,18 +333,6 @@ void check_mqtt(void)
     }
 }
 
-/** @brief Puplishes a formatted command string to Particle cloud that fires off a webhook
- *  @param day
- */
-void get_data(int day)
-{
-    range = MAX_RANGE;
-    temp[0] = 0;
-    String data = String::format("{ \"year\": \"%d\", \"month\":\"%02d\", \"day\": \"%02d\", \"day_two\": \"%02d\", \"hour\": \"%02d\" }", Time.year(), Time.month(), day, day + 2, Time.hour());
-
-    // Trigger the integration
-    Particle.publish("elpriser", data, PRIVATE);
-}
 void transmit_prices(int start_stop[12][2], int size)
 {
     Serial.printf("In work\n");
@@ -395,7 +358,7 @@ void transmit_prices(int start_stop[12][2], int size)
 void check_time(void)
 {
     int currentHour = Time.hour();
-    if ((currentHour == PULL_TIME_1 || currentHour == PULL_TIME_2) && currentHour != oneShotGuard)
+    if ((currentHour == PULL_TIME_1) && currentHour != oneShotGuard)
     {
         oneShotGuard = currentHour;
 #ifdef STATEDEBUG
@@ -405,5 +368,11 @@ void check_time(void)
 #ifdef STATEDEBUG
         digitalWrite(state, HIGH);
 #endif
+    }
+    if ((currentHour == PULL_TIME_2) && currentHour != oneShotGuard2)
+    {
+        oneShotGuard2 = currentHour;
+
+        state = ROTATE;
     }
 }
