@@ -2,7 +2,7 @@
 //       THIS IS A GENERATED FILE - DO NOT EDIT       //
 /******************************************************/
 
-#line 1 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
+#line 1 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
 #include "string.h"
 #include "application.h"
 #include "../lib/MQTT/src/MQTT.h"
@@ -13,13 +13,14 @@
 
 
 //#define STATEDEBUG 1
-
 void setup();
 void loop();
 void BLEOnConnectcallback(const BlePeerDevice& peer, void* context);
 void transmit_prices(int start_stop[12][2], int size);
 void check_time(void);
-#line 12 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
+#line 11 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
+#define USEMQTT
+
 #define KW_SENSOR_PIN D8
 #define WATT_CONVERSION_CONSTANT 3600000
 #define HOST "192.168.0.103"
@@ -58,10 +59,12 @@ void handle_sensor(void);
 void myHandler(const char *event, const char *data);
 void myPriceHandler(const char *event, const char *data);
 
+#ifdef USEMQTT
 // Callback function for MQTT transmission
 void callback(char *topic, byte *payload, unsigned int length);
 // Create MQTT client
 MQTT client("192.168.110.6", PORT, 512, 30, callback);
+#endif
 // Create sleep instance
 SystemSleepConfiguration config;
 
@@ -93,13 +96,13 @@ void setup()
     
     pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                // Setup pinmode for LDR pin
     attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING); // Attach interrup that will be called when rising
-
+#ifdef USEMQTT
     IPAddress IP = resolver.search("homeassistant.local");
     
     Particle.publish("HA IP", IP.toString());
 
     client.setBroker(IP.toString(), PORT);
-
+#endif
     // Subscribe to the integration response event
     Particle.subscribe("prices", myHandler, MY_DEVICES);
     Particle.subscribe("get_prices", myPriceHandler, MY_DEVICES);
@@ -107,6 +110,7 @@ void setup()
     // Publish state variable to Particle cloud
     Particle.variable("State", state);
 
+#ifdef USEMQTT
     // connect to the mqtt broker(unique id by Time.now())
     Serial.printf("Return value: %d", client.connect("client_" + String(Time.now()), "mqtt", "mqtt"));
 
@@ -119,7 +123,7 @@ void setup()
         // client.subscribe("power/get");
         client.subscribe("power/prices");
     }
-
+#endif
     // Setup low power mode
     // config.mode(SystemSleepMode::ULTRA_LOW_POWER).gpio(KW_SENSOR_PIN, RISING).network(NETWORK_INTERFACE_ALL);
 }
@@ -132,8 +136,9 @@ void loop()
     // wakeup on interrupt but go back to sleep again.
     // Check what time it is
     check_time();
-
-    //check_mqtt();
+#ifdef USEMQTT
+    check_mqtt();
+#endif
 
     // Is it time to update the prices or has it been requested?
     if (state == GET_DATA)
@@ -163,9 +168,15 @@ void loop()
     if (state == TRANSMIT_SENSOR) // Did we receive a request for updated values
     {
         Serial.printf("Received power/get\n");
+        #ifdef USEMQTT
         char values[16];
         sprintf(values, "%d", calc_power);
         client.publish("power", values);
+        #endif
+        char buffer[255];
+        sprintf(buffer, "{\"watt\":%d}", calc_power);
+        WattCharacteristic.setValue(buffer);
+
 #ifdef STATEDEBUG
         digitalWrite(state, LOW);
 #endif
@@ -177,12 +188,16 @@ void loop()
 
     if(NewBLEConnection & ((millis()-last_connect)>1400)){
         //send everything relavant on new connect
-        // needs a bit og delay to ensure device is ready
-        //WattCharacteristic.setValue(300,1);   // to send int value
-        
+        //needs a bit og delay to ensure device is ready
+        char buffer[255];
+        sprintf(buffer, "{\"watt\":%d}", calc_power);
+        WattCharacteristic.setValue(buffer);
+        DkkYesterdayCharacteristic.setValue("{\"pricesyesterday\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,24]}");
         DkkTodayCharacteristic.setValue("{\"pricestoday\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,24]}");  // string mKr/kwhr
         DkkTomorrowCharacteristic.setValue("{\"pricestomorrow\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}"); // string mKr/kwhr
+        WhrYesterdayCharacteristic.setValue("{\"WHr_yesterday\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}");
         WhrTodayCharacteristic.setValue("{\"WHr_today\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}"); // Whr used in the corrisponding hour
+        
         NewBLEConnection = false;
         Serial.printf("ble_connected");
     }

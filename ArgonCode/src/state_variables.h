@@ -11,6 +11,7 @@ enum statemachine
     SLEEP_STATE = 5,
     AWAITING_DATA = 6,
     STARTUP = 10,
+    ROTATE = 11,
 };
 
 #endif
