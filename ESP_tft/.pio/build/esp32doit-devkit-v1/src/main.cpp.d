@@ -193,6 +193,7 @@
  .pio/libdeps/esp32doit-devkit-v1/Arduino_JSON/src/Arduino_JSON.h \
  .pio/libdeps/esp32doit-devkit-v1/Arduino_JSON/src/JSON.h \
  .pio/libdeps/esp32doit-devkit-v1/Arduino_JSON/src/JSONVar.h \
+ C:/Users/mikeh/.platformio/packages/framework-arduinoespressif32/libraries/FS/src/FS.h \
  .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/TFT_eSPI.h \
  .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/User_Setup_Select.h \
  .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/User_Setup.h \
@@ -212,7 +213,6 @@
  C:/Users/mikeh/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/soc/esp32/include/soc/sdmmc_pins.h \
  C:/Users/mikeh/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/soc/esp32/include/soc/spi_struct.h \
  C:/Users/mikeh/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/hal/include/hal/spi_types.h \
- C:/Users/mikeh/.platformio/packages/framework-arduinoespressif32/libraries/FS/src/FS.h \
  C:/Users/mikeh/.platformio/packages/framework-arduinoespressif32/libraries/SPIFFS/src/SPIFFS.h \
  .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/Fonts/glcdfont.c \
  .pio/libdeps/esp32doit-devkit-v1/TFT_eSPI/Fonts/Font16.h \

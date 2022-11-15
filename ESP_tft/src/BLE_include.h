@@ -7,12 +7,13 @@
 #include <Arduino_JSON.h>
 #define CONFIG_BT_ENABLED
 volatile int power;
-volatile double pricetoday[24];
-volatile double pricesyesterday[24];
-volatile double pricetomorrow[24];
-volatile double WHrToday_arr[24];
-volatile double WHryesterday_arr[24];
-
+ double pricetoday[24];
+ double pricesyesterday[24];
+ double pricetomorrow[24];
+ double WHrToday_arr[24];
+ double WHryesterday_arr[24];
+ double WHrBlank[24];
+bool ScreenUpdate = true;
 /* Specify the Service UUID of Server  and characteristics*/
 
 const char* serviceUuid_c     = "3f1a1596-ee7f-42bd-84d1-b1a294f82ecf";
@@ -187,6 +188,7 @@ static void DkkTodayNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharacteri
             pricetoday[d] = myArray[d];
         }
     }
+    ScreenUpdate = true;
 }
 
 static void DkkYesterdayNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify)
@@ -215,6 +217,7 @@ static void DkkYesterdayNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharac
             pricesyesterday[d] = myArray[d];
         }
     }
+    ScreenUpdate = true;
 }
 
 static void DkkTomorrowNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify)
@@ -243,6 +246,7 @@ static void DkkTomorrowNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharact
             pricetomorrow[d] = myArray[d];
         }
     }
+    ScreenUpdate = true;
 }
 static void WhrTodayNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify)
 {
@@ -270,6 +274,7 @@ static void WhrTodayNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharacteri
             WHrToday_arr[d] = myArray[d];
         }
     }
+    ScreenUpdate = true;
 }
 
 static void WhrYesterdayNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify)
@@ -298,4 +303,5 @@ static void WhrYesterdayNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharac
             WHryesterday_arr[d] = myArray[d];
         }
     }
+    ScreenUpdate = true;
 }
