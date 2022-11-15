@@ -23,8 +23,6 @@
 #define MAX_TRANSMIT_BUFF 128
 #define SLEEP_DURATION 30000
 
-Timer timer(60000, timer_callback);
-
 statemachine state;
 
 int oneShotGuard = -1;
@@ -34,6 +32,9 @@ int * wh_yesterday;
 int * wh_today;
 
 int fd_today;
+int fd_yesterday;
+int fd_wh_today;
+int fd_wh_yesterday;
 
 bool NewBLEConnection =  false;
 int last_connect = 0;
@@ -44,19 +45,18 @@ String pricesyesterday_Json;
 String wh_today_Json;
 String wh_yesterday_Json;
 
-//int calc_low(int **low_price_intervals);
 
-void timer_callback(void);
-void init_memory(void);
-void get_data(int day);
-void handle_sensor(void);
-void check_mqtt(void);
-void init_GPIO(void);
-void transmit_prices(int start_stop[12][2], int cnt);
-void handle_sensor(void);
-void myPriceHandler(const char *event, const char *data);
-void update_JSON(void);
-void hourly_JSON_update(void);
+void timer_callback(void);                                  // Timer callback function
+void init_memory(void);                                     // Initialize memory for the wh and price arrays
+void get_data(int day);                                     // Request data from webhook integration
+void handle_sensor(void);                                   // Handles the sensor reading and calculation of power
+void check_mqtt(void);                                      // Check if MQTT is connected - Reconnect of needed
+void init_GPIO(void);                                       // Initialize GPIO pins
+void transmit_prices(int start_stop[12][2], int cnt);       // Transmits low price intervals to MQTT
+void handle_sensor(void);                                   // Handles the sensor reading and calculation of power
+void myPriceHandler(const char *event, const char *data);   // Handler for webhook
+
+Timer timer(60000, check_time);
 
 #ifdef USEMQTT
 // Callback function for MQTT transmission
@@ -217,16 +217,9 @@ void loop()
         NewBLEConnection = false;
         Serial.printf("ble_connected\n");
     }
+    Serial.printlnf("before %lu", System.freeMemory());
+    delay(1000);
 
-}
-
-/**
- * @brief      Callback function for software timer. This function is called every 60 seconds. Call the function updates state machine
- *              which in turn decides if it is time to update the prices, update watt hours or rotate price and watt hour arrays.
- */
-void timer_callback()
-{
-    check_time();
 }
 
 /** @brief Initialize memory. Function is called once at startup. Arrays are rotated afterwards at midnight
@@ -236,10 +229,40 @@ void init_memory()
 {
     // Allocate for the prices
     cost_yesterday = (double *) malloc(MAX_RANGE * sizeof(double));
+    if (cost_yesterday == NULL)
+    {
+        Serial.printf("Failed to allocate memory for cost_yesterday\n");
+        while (1)
+            ;
+    }
     cost_today  = (double *) malloc(MAX_RANGE * sizeof(double));
+    if (cost_today == NULL)
+    {
+        Serial.printf("Failed to allocate memory for cost_today\n");
+        while (1)
+            ;
+    }
     cost_tomorrow = (double *) malloc(MAX_RANGE * sizeof(double));
+    if (cost_tomorrow == NULL)
+    {
+        Serial.printf("Failed to allocate memory for cost_tomorrow\n");
+        while (1)
+            ;
+    }
     wh_today = (int *) malloc(MAX_RANGE * sizeof(int));
+    if (wh_today == NULL)
+    {
+        Serial.printf("Failed to allocate memory for wh_today\n");
+        while (1)
+            ;
+    }
     wh_yesterday = (int *) malloc(MAX_RANGE * sizeof(int));
+    if (wh_yesterday == NULL)
+    {
+        Serial.printf("Failed to allocate memory for wh_yesterday\n");
+        while (1)
+            ;
+    }
     // Set all values to 0
     memset(cost_yesterday, 0, MAX_RANGE * sizeof(double));
     memset(cost_today, 0, MAX_RANGE * sizeof(double));
@@ -282,9 +305,12 @@ void BLEOnConnectcallback(const BlePeerDevice& peer, void* context){
 */
 void handle_sensor(void)
 {
+    Serial.printlnf("Memory in handler %lu", System.freeMemory());
+    /*
     static unsigned long last_read = 0;
     unsigned long delta;
     unsigned long current_reading = millis();
+    
     // Check if we have a valid reading. I.e. at least 100 ms since last reading, which is equal to 36kW
     if ((delta = current_reading - last_read) > 100)
     {
@@ -313,6 +339,7 @@ void handle_sensor(void)
         digitalWrite(state, HIGH);
 #endif
     }
+    */
 }
 /**
  * @brief     Initializes GPIO for debugging state machine output
