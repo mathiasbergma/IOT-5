@@ -1,13 +1,13 @@
 #include "state_variables.h"
 
-#define MAX_RANGE 23
+#define MAX_RANGE 24
 
 extern statemachine state;
 char temp[5 * 513];    // Create an array that can hold the entire transmission
 double * cost_yesterday;
 double * cost_today;
 double * cost_tomorrow;
-int range = 24; // Max received count. Updated if received count is smaller
+int range = MAX_RANGE; // Max received count. Updated if received count is smaller
 int cost_hour[MAX_RANGE];
 
 const struct transport_t
