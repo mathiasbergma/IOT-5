@@ -7,6 +7,7 @@
 #include "BLE_include.h"
 #include <fcntl.h>
 #include "price_handler.h"
+#include "update_json.h"
 
 
 //#define STATEDEBUG 1
@@ -28,16 +29,21 @@ statemachine state;
 
 int oneShotGuard = -1;
 int oneShotGuard2 = -1;
+int oneShotGuard3 = -1;
 double cost[MAX_RANGE];
 int * wh_yesterday;
 int * wh_today;
 
- int fd_today;
+int fd_today;
 
 bool NewBLEConnection =  false;
 int last_connect = 0;
 int calc_power;
-
+String pricestoday_Json;
+String pricestomorrow_Json;
+String pricesyesterday_Json;
+String wh_today_Json;
+String wh_yesterday_Json;
 
 //int calc_low(int **low_price_intervals);
 
@@ -50,6 +56,8 @@ void init_GPIO(void);
 void transmit_prices(int start_stop[12][2], int cnt);
 void handle_sensor(void);
 void myPriceHandler(const char *event, const char *data);
+void update_JSON(void);
+void hourly_JSON_update(void);
 
 #ifdef USEMQTT
 // Callback function for MQTT transmission
@@ -174,7 +182,7 @@ void loop()
 #ifdef STATEDEBUG
         digitalWrite(state, LOW);
 #endif
-        state = SLEEP_STATE;
+        state = STANDBY_STATE;
 #ifdef STATEDEBUG
         digitalWrite(state, HIGH);
 #endif
@@ -183,7 +191,13 @@ void loop()
     if (state == ROTATE)
     {
         rotate_prices();
-        state = SLEEP_STATE;
+        state = STANDBY_STATE;
+    }
+
+    if (state == UPDATE_WH_TODAY)
+    {
+        hourly_JSON_update();
+        state = STANDBY_STATE;
     }
 
     if(NewBLEConnection & ((millis()-last_connect)>1400)){
@@ -192,21 +206,26 @@ void loop()
         char buffer[255];
         sprintf(buffer, "{\"watt\":%d}", calc_power);
         WattCharacteristic.setValue(buffer);
-        DkkYesterdayCharacteristic.setValue("{\"pricesyesterday\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,24]}");
-        DkkTodayCharacteristic.setValue("{\"pricestoday\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,24]}");  // string mKr/kwhr
-        DkkTomorrowCharacteristic.setValue("{\"pricestomorrow\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}"); // string mKr/kwhr
-        WhrYesterdayCharacteristic.setValue("{\"WHr_yesterday\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}");
-        WhrTodayCharacteristic.setValue("{\"WHr_today\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}"); // Whr used in the corrisponding hour
+        DkkYesterdayCharacteristic.setValue(pricestoday_Json.c_str());
+        DkkTodayCharacteristic.setValue(pricestoday_Json.c_str());  // string mKr/kwhr
+        DkkTomorrowCharacteristic.setValue(pricestomorrow_Json.c_str()); // string mKr/kwhr
+        WhrYesterdayCharacteristic.setValue(wh_yesterday_Json.c_str()); // string mWhr
+        WhrTodayCharacteristic.setValue(wh_today_Json.c_str()); // Whr used in the corrisponding hour
         
         NewBLEConnection = false;
-        Serial.printf("ble_connected");
+        Serial.printf("ble_connected\n");
     }
 
 }
+
 void timer_callback()
 {
     check_time();
 }
+
+/** @brief Initialize memory. Function is called once at startup. Arrays are rotated afterwards at midnight
+ * 
+*/
 void init_memory()
 {
     // Allocate for the prices
@@ -223,7 +242,7 @@ void init_memory()
     memset(wh_yesterday, 0, MAX_RANGE * sizeof(int));
 
     // Hent indhold af filer, så vi har gemte data i tilfælde af reboot
-   fd_today = open("/sd/prices_today.txt", O_RDWR | O_CREAT);
+    //fd_today = open("/sd/prices_today.txt", O_RDWR | O_CREAT);
 }
 void rotate_prices()
 {
@@ -233,10 +252,12 @@ void rotate_prices()
     cost_today = cost_tomorrow;
     cost_tomorrow = temp;
 
-    for (int i = 0; i < MAX_RANGE; i++)
-    {
-        cost_tomorrow[i] = 0;
-    }
+    memset(cost_tomorrow, 0, MAX_RANGE * sizeof(double));
+
+    int *temp2 = wh_yesterday;
+    wh_yesterday = wh_today;
+    wh_today = temp2;
+    memset(wh_today, 0, MAX_RANGE * sizeof(int));
 
     // Opdater filer med nye priser
 }
@@ -265,6 +286,10 @@ void handle_sensor(void)
 #endif
         calc_power = WATT_CONVERSION_CONSTANT / delta;
         last_read = current_reading;
+
+        // One flash from sensor equals 1 Whr - Add to total
+        wh_today[Time.hour()] += 1;
+
 #ifdef STATEDEBUG
         digitalWrite(state, LOW);
 #endif
@@ -283,7 +308,7 @@ void init_GPIO(void)
     pinMode(CALCULATE, OUTPUT);
     pinMode(TRANSMIT_PRICE, OUTPUT);
     pinMode(TRANSMIT_SENSOR, OUTPUT);
-    pinMode(SLEEP_STATE, OUTPUT);
+    pinMode(STANDBY_STATE, OUTPUT);
     pinMode(AWAITING_DATA, OUTPUT);
     pinMode(STARTUP, OUTPUT);
 }
@@ -336,7 +361,7 @@ void transmit_prices(int start_stop[12][2], int size)
 #ifdef STATEDEBUG
     digitalWrite(state, LOW);
 #endif
-    state = SLEEP_STATE;
+    state = STANDBY_STATE;
 #ifdef STATEDEBUG
     digitalWrite(state, HIGH);
 #endif
@@ -344,9 +369,10 @@ void transmit_prices(int start_stop[12][2], int size)
 void check_time(void)
 {
     int currentHour = Time.hour();
-    if ((currentHour == PULL_TIME_1) && currentHour != oneShotGuard)
+    int currentDay = Time.day();
+    if ((currentHour == PULL_TIME_1) && currentDay != oneShotGuard)
     {
-        oneShotGuard = currentHour;
+        oneShotGuard = currentDay;
 #ifdef STATEDEBUG
         digitalWrite(state, LOW);
 #endif
@@ -355,10 +381,17 @@ void check_time(void)
         digitalWrite(state, HIGH);
 #endif
     }
-    if ((currentHour == PULL_TIME_2) && currentHour != oneShotGuard2)
+    if ((currentHour == PULL_TIME_2) && currentDay != oneShotGuard2)
     {
-        oneShotGuard2 = currentHour;
+        oneShotGuard2 = currentDay;
 
         state = ROTATE;
+    }
+
+    if (Time.minute() == 0 && currentHour != oneShotGuard3)
+    {
+        oneShotGuard3 = currentHour;
+        // Update the wh_today array
+        state = UPDATE_WH_TODAY;
     }
 }

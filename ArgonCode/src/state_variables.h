@@ -8,10 +8,11 @@ enum statemachine
     CALCULATE = 2,
     TRANSMIT_PRICE = 3,
     TRANSMIT_SENSOR = 4,
-    SLEEP_STATE = 5,
+    STANDBY_STATE = 5,
     AWAITING_DATA = 6,
     STARTUP = 10,
     ROTATE = 11,
+    UPDATE_WH_TODAY = 12,
 };
 
 #endif

@@ -1,6 +1,6 @@
 #include "state_variables.h"
 
-#define MAX_RANGE 24
+#define MAX_RANGE 23
 
 extern statemachine state;
 char temp[5 * 513];    // Create an array that can hold the entire transmission
