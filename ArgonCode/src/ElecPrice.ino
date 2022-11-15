@@ -1,14 +1,13 @@
-#include "string.h"
-#include "application.h"
 #include "../lib/MQTT/src/MQTT.h"
-#include "cost_calc.h"
-#include "state_variables.h"
-#include "mDNSResolver.h"
 #include "BLE_include.h"
-#include <fcntl.h>
+#include "application.h"
+#include "cost_calc.h"
+#include "mDNSResolver.h"
 #include "price_handler.h"
+#include "state_variables.h"
+#include "string.h"
 #include "update_json.h"
-
+#include <fcntl.h>
 
 //#define STATEDEBUG 1
 //#define USEMQTT
@@ -28,15 +27,17 @@ statemachine state;
 int oneShotGuard = -1;
 int oneShotGuard2 = -1;
 int oneShotGuard3 = -1;
-int * wh_yesterday;
-int * wh_today;
+int *wh_yesterday;
+int *wh_today;
 
 int fd_today;
 int fd_yesterday;
 int fd_wh_today;
 int fd_wh_yesterday;
 
-bool NewBLEConnection =  false;
+uint8_t currentHour = Time.hour();
+
+bool NewBLEConnection = false;
 int last_connect = 0;
 int calc_power;
 String pricestoday_Json;
@@ -45,18 +46,17 @@ String pricesyesterday_Json;
 String wh_today_Json;
 String wh_yesterday_Json;
 
+void timer_callback(void);                                // Timer callback function
+void init_memory(void);                                   // Initialize memory for the wh and price arrays
+void get_data(int day);                                   // Request data from webhook integration
+void handle_sensor(void);                                 // Handles the sensor reading and calculation of power
+void check_mqtt(void);                                    // Check if MQTT is connected - Reconnect of needed
+void init_GPIO(void);                                     // Initialize GPIO pins
+void transmit_prices(int start_stop[12][2], int cnt);     // Transmits low price intervals to MQTT
+void handle_sensor(void);                                 // Handles the sensor reading and calculation of power
+void myPriceHandler(const char *event, const char *data); // Handler for webhook
 
-void timer_callback(void);                                  // Timer callback function
-void init_memory(void);                                     // Initialize memory for the wh and price arrays
-void get_data(int day);                                     // Request data from webhook integration
-void handle_sensor(void);                                   // Handles the sensor reading and calculation of power
-void check_mqtt(void);                                      // Check if MQTT is connected - Reconnect of needed
-void init_GPIO(void);                                       // Initialize GPIO pins
-void transmit_prices(int start_stop[12][2], int cnt);       // Transmits low price intervals to MQTT
-void handle_sensor(void);                                   // Handles the sensor reading and calculation of power
-void myPriceHandler(const char *event, const char *data);   // Handler for webhook
-
-Timer timer(60000, check_time);
+Timer timer(60000, check_time, true); // One-shot timer.
 
 #ifdef USEMQTT
 // Callback function for MQTT transmission
@@ -64,7 +64,6 @@ void callback(char *topic, byte *payload, unsigned int length);
 // Create MQTT client
 MQTT client("192.168.110.6", PORT, 512, 30, callback);
 #endif
-
 
 UDP udp;
 mDNSResolver::Resolver resolver(udp);
@@ -96,7 +95,7 @@ void setup()
 
     Time.zone(1);
     Time.beginDST();
-    
+
     pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                // Setup pinmode for LDR pin
     attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING); // Attach interrup that will be called when rising
 #ifdef USEMQTT
@@ -125,7 +124,6 @@ void setup()
         client.subscribe("power/prices");
     }
 #endif
-
 }
 
 void loop()
@@ -147,7 +145,7 @@ void loop()
 #ifdef STATEDEBUG
         digitalWrite(state, HIGH);
 #endif
-        get_data(Time.day()+1);
+        get_data(Time.day() + 1);
     }
 
     // Has the prices for today arrived?
@@ -168,11 +166,11 @@ void loop()
         Serial.printf("Received power/get\n");
         // One flash from sensor equals 1 Whr - Add to total
         wh_today[Time.hour()] += 1;
-        #ifdef USEMQTT
+#ifdef USEMQTT
         char values[16];
         sprintf(values, "%d", calc_power);
         client.publish("power", values);
-        #endif
+#endif
         char buffer[255];
         sprintf(buffer, "{\"watt\":%d}", calc_power);
         WattCharacteristic.setValue(buffer);
@@ -194,79 +192,79 @@ void loop()
 
     if (state == UPDATE_WH_TODAY)
     {
-        #ifdef USEMQTT
+#ifdef USEMQTT
         char buffer[16];
-        sprintf(buffer, "%d", wh_today[Time.hour()-1]);
+        sprintf(buffer, "%d", wh_today[Time.hour() - 1]);
         client.publish("watthour", buffer);
-        #endif
+#endif
         hourly_JSON_update();
         state = STANDBY_STATE;
     }
 
-    if(NewBLEConnection & ((millis()-last_connect)>1400)){
-        //send everything relavant on new connect
-        //needs a bit og delay to ensure device is ready
+    if (NewBLEConnection & ((millis() - last_connect) > 1400))
+    {
+        // send everything relavant on new connect
+        // needs a bit og delay to ensure device is ready
         char buffer[255];
         sprintf(buffer, "{\"watt\":%d}", calc_power);
         WattCharacteristic.setValue(buffer);
         DkkYesterdayCharacteristic.setValue(pricestoday_Json.c_str());
-        DkkTodayCharacteristic.setValue(pricestoday_Json.c_str());  // string Kr/kwhr
+        DkkTodayCharacteristic.setValue(pricestoday_Json.c_str());       // string Kr/kwhr
         DkkTomorrowCharacteristic.setValue(pricestomorrow_Json.c_str()); // string Kr/kwhr
-        WhrYesterdayCharacteristic.setValue(wh_yesterday_Json.c_str()); // string Whr
-        WhrTodayCharacteristic.setValue(wh_today_Json.c_str()); // Whr used in the corresponding hour
-        
+        WhrYesterdayCharacteristic.setValue(wh_yesterday_Json.c_str());  // string Whr
+        WhrTodayCharacteristic.setValue(wh_today_Json.c_str());          // Whr used in the corresponding hour
+
         NewBLEConnection = false;
         Serial.printf("ble_connected\n");
     }
-    
-    delay(1000);
 
+    delay(1000);
 }
 
 /** @brief Initialize memory. Function is called once at startup. Arrays are rotated afterwards at midnight
- * 
-*/
+ *
+ */
 void init_memory()
 {
     Serial.printf("before %lu\n", System.freeMemory());
     // Allocate for the prices
-    cost_yesterday = (double *) malloc(MAX_RANGE * sizeof(double));
+    cost_yesterday = (double *)malloc(MAX_RANGE * sizeof(double));
     if (cost_yesterday == NULL)
     {
         Serial.printf("Failed to allocate memory for cost_yesterday\n");
         while (1)
             ;
     }
-    cost_today  = (double *) malloc(MAX_RANGE * sizeof(double));
+    cost_today = (double *)malloc(MAX_RANGE * sizeof(double));
     if (cost_today == NULL)
     {
         Serial.printf("Failed to allocate memory for cost_today\n");
         while (1)
             ;
     }
-    cost_tomorrow = (double *) malloc(MAX_RANGE * sizeof(double));
+    cost_tomorrow = (double *)malloc(MAX_RANGE * sizeof(double));
     if (cost_tomorrow == NULL)
     {
         Serial.printf("Failed to allocate memory for cost_tomorrow\n");
         while (1)
             ;
     }
-    Serial.printf("Memory allocated for prices: %d bytes of doubles\n",3*MAX_RANGE*sizeof(double));
-    wh_today = (int *) malloc(MAX_RANGE * sizeof(int));
+    Serial.printf("Memory allocated for prices: %d bytes of doubles\n", 3 * MAX_RANGE * sizeof(double));
+    wh_today = (int *)malloc(MAX_RANGE * sizeof(int));
     if (wh_today == NULL)
     {
         Serial.printf("Failed to allocate memory for wh_today\n");
         while (1)
             ;
     }
-    wh_yesterday = (int *) malloc(MAX_RANGE * sizeof(int));
+    wh_yesterday = (int *)malloc(MAX_RANGE * sizeof(int));
     if (wh_yesterday == NULL)
     {
         Serial.printf("Failed to allocate memory for wh_yesterday\n");
         while (1)
             ;
     }
-    Serial.printf("Memory allocated for wh: %d bytes of ints\n",2*MAX_RANGE*sizeof(int));
+    Serial.printf("Memory allocated for wh: %d bytes of ints\n", 2 * MAX_RANGE * sizeof(int));
     Serial.printf("After %lu\n", System.freeMemory());
     // Set all values to 0
     memset(cost_yesterday, 0, MAX_RANGE * sizeof(double));
@@ -276,11 +274,11 @@ void init_memory()
     memset(wh_yesterday, 0, MAX_RANGE * sizeof(int));
 
     // Hent indhold af filer, så vi har gemte data i tilfælde af reboot
-    //fd_today = open("/sd/prices_today.txt", O_RDWR | O_CREAT);
+    // fd_today = open("/sd/prices_today.txt", O_RDWR | O_CREAT);
 }
 /**
  * @brief      Rotates arrays. Decision is made based on the current time. If it is midnight, the arrays are rotated.
-*/
+ */
 void rotate_prices()
 {
     // Rotate prices so that we can use the same array for all days
@@ -300,24 +298,24 @@ void rotate_prices()
 }
 /**
  * @brief    Sets a flag when a new BLE connection is established
-*/
-void BLEOnConnectcallback(const BlePeerDevice& peer, void* context){
+ */
+void BLEOnConnectcallback(const BlePeerDevice &peer, void *context)
+{
     NewBLEConnection = true;
     last_connect = millis();
 }
 /**
  * @brief    IRQ handler for the KW sensor. This function is called every time the KW sensor detects a pulse.
-*/
+ */
 void handle_sensor(void)
 {
     static unsigned long last_read = 0;
-    unsigned long delta;
     unsigned long current_reading = millis();
-    
+    unsigned long delta = current_reading - last_read;
+
     // Check if we have a valid reading. I.e. at least 100 ms since last reading, which is equal to 36kW
-    if ((delta = current_reading - last_read) > 100)
+    if (delta > 100)
     {
-        Serial.printf("In interrupt\n");
 #ifdef STATEDEBUG
         digitalWrite(state, LOW);
 #endif
@@ -328,6 +326,9 @@ void handle_sensor(void)
 #endif
         calc_power = WATT_CONVERSION_CONSTANT / delta;
         last_read = current_reading;
+
+        // One flash from sensor equals 1 Whr - Add to total
+        wh_today[currentHour] += 1;
 
 #ifdef STATEDEBUG
         digitalWrite(state, LOW);
@@ -342,7 +343,7 @@ void handle_sensor(void)
 }
 /**
  * @brief     Initializes GPIO for debugging state machine output
-*/
+ */
 void init_GPIO(void)
 {
     pinMode(SENSOR_READ, OUTPUT);
@@ -366,12 +367,11 @@ void callback(char *topic, byte *payload, unsigned int length)
 #endif
 }
 
-
 /** @brief Reconnects MQTT client if disconnected
  */
 void check_mqtt(void)
 {
-    #ifdef MQTT
+#ifdef MQTT
     if (client.isConnected())
     {
         client.loop();
@@ -385,7 +385,7 @@ void check_mqtt(void)
             Serial.printf("Client reconnected\n");
         }
     }
-    #endif
+#endif
 }
 
 /**
@@ -402,11 +402,11 @@ void transmit_prices(int start_stop[12][2], int size)
     }
     // Publish the cheap hours to cloud
     Particle.publish("Low price hours", data, PRIVATE);
-    #ifdef MQTT
+#ifdef MQTT
     // Publish cheap hour to MQTT
     client.publish("prices", data);
     client.loop();
-    #endif
+#endif
 #ifdef STATEDEBUG
     digitalWrite(state, LOW);
 #endif
@@ -420,8 +420,20 @@ void transmit_prices(int start_stop[12][2], int size)
  */
 void check_time(void)
 {
-    int currentHour = Time.hour();
-    int currentDay = Time.day();
+    currentHour = Time.hour();
+    uint8_t currentMinute = Time.minute();
+    uint8_t currentSecond = Time.second();
+    uint8_t currentDay = Time.day();
+    uint countdown;
+
+    // Set new countdown to aim for xx:00:01 within a second (+1 for safe side)
+    countdown = ((60 - currentMinute) * 60000) - (currentSecond + 1);
+
+    // Start timer again with new countdown
+    timer.stop();
+    timer.changePeriod(countdown);
+    timer.start();
+
     if ((currentHour == PULL_TIME_1) && currentDay != oneShotGuard)
     {
         oneShotGuard = currentDay;
@@ -440,10 +452,6 @@ void check_time(void)
         state = ROTATE;
     }
 
-    if (Time.minute() == 0 && currentHour != oneShotGuard3)
-    {
-        oneShotGuard3 = currentHour;
-        // Update the wh_today array
-        state = UPDATE_WH_TODAY;
-    }
+    // Update the wh_today array
+    state = UPDATE_WH_TODAY;
 }
