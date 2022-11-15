@@ -9,8 +9,8 @@
 #include "update_json.h"
 #include <fcntl.h>
 
-//#define STATEDEBUG 1
-//#define USEMQTT
+//#define STATEDEBUG
+#define USEMQTT
 
 #define KW_SENSOR_PIN D8
 #define WATT_CONVERSION_CONSTANT 3600000
