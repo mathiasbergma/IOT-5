@@ -3,7 +3,7 @@
 #define MAX_RANGE 24
 
 extern statemachine state;
-char temp[5 * 513];    // Create an array that can hold the entire transmission
+char temp[2 * 513];    // Create an array that can hold the entire transmission
 double * cost_yesterday;
 double * cost_today;
 double * cost_tomorrow;
@@ -43,7 +43,7 @@ void myHandler(const char *event, const char *data)
     // "eventname/<transmission part no>"
     char event_str[12];
     strcpy(event_str, event);
-
+    Serial.printf("event_str: %s\n", event_str);
     // Token used for strtok()
     char *token = NULL;
     // Extract the numbered part of eventname and use it for indexing "temp"

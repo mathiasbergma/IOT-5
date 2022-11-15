@@ -16,6 +16,8 @@
 
 
 //#define STATEDEBUG 1
+//#define USEMQTT
+
 void setup();
 void loop();
 void init_memory();
@@ -23,9 +25,7 @@ void rotate_prices();
 void BLEOnConnectcallback(const BlePeerDevice& peer, void* context);
 void transmit_prices(int start_stop[12][2], int size);
 void check_time(void);
-#line 14 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
-#define USEMQTT
-
+#line 16 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
 #define KW_SENSOR_PIN D8
 #define WATT_CONVERSION_CONSTANT 3600000
 #define HOST "192.168.0.103"
@@ -88,12 +88,6 @@ void setup()
 {
     init_GPIO();
 
-    // setup BLE
-    ble_setup();
-
-    // Initialize memory
-    init_memory();
-
     state = STARTUP;
 #ifdef STATEDEBUG
     digitalWrite(state, LOW);
@@ -106,6 +100,12 @@ void setup()
 #ifdef STATEDEBUG
     digitalWrite(state, HIGH);
 #endif
+
+    // setup BLE
+    ble_setup();
+
+    // Initialize memory
+    init_memory();
 
     Time.zone(1);
     Time.beginDST();
@@ -180,14 +180,16 @@ void loop()
     if (state == TRANSMIT_SENSOR) // Did we receive a request for updated values
     {
         Serial.printf("Received power/get\n");
+        // One flash from sensor equals 1 Whr - Add to total
+        wh_today[Time.hour()] += 1;
         #ifdef USEMQTT
         char values[16];
         sprintf(values, "%d", calc_power);
         client.publish("power", values);
         #endif
-        char buffer[255];
-        sprintf(buffer, "{\"watt\":%d}", calc_power);
-        WattCharacteristic.setValue(buffer);
+        //char buffer[255];
+        //sprintf(buffer, "{\"watt\":%d}", calc_power);
+        //WattCharacteristic.setValue(buffer);
 
 #ifdef STATEDEBUG
         digitalWrite(state, LOW);
@@ -230,7 +232,7 @@ void loop()
         NewBLEConnection = false;
         Serial.printf("ble_connected\n");
     }
-    Serial.printlnf("before %lu", System.freeMemory());
+    
     delay(1000);
 
 }
@@ -240,6 +242,7 @@ void loop()
 */
 void init_memory()
 {
+    Serial.printf("before %lu\n", System.freeMemory());
     // Allocate for the prices
     cost_yesterday = (double *) malloc(MAX_RANGE * sizeof(double));
     if (cost_yesterday == NULL)
@@ -262,6 +265,7 @@ void init_memory()
         while (1)
             ;
     }
+    Serial.printf("Memory allocated for prices: %d bytes of doubles\n",3*MAX_RANGE*sizeof(double));
     wh_today = (int *) malloc(MAX_RANGE * sizeof(int));
     if (wh_today == NULL)
     {
@@ -276,6 +280,8 @@ void init_memory()
         while (1)
             ;
     }
+    Serial.printf("Memory allocated for wh: %d bytes of ints\n",2*MAX_RANGE*sizeof(int));
+    Serial.printf("After %lu\n", System.freeMemory());
     // Set all values to 0
     memset(cost_yesterday, 0, MAX_RANGE * sizeof(double));
     memset(cost_today, 0, MAX_RANGE * sizeof(double));
@@ -318,8 +324,6 @@ void BLEOnConnectcallback(const BlePeerDevice& peer, void* context){
 */
 void handle_sensor(void)
 {
-    Serial.printlnf("Memory in handler %lu", System.freeMemory());
-    /*
     static unsigned long last_read = 0;
     unsigned long delta;
     unsigned long current_reading = millis();
@@ -339,9 +343,6 @@ void handle_sensor(void)
         calc_power = WATT_CONVERSION_CONSTANT / delta;
         last_read = current_reading;
 
-        // One flash from sensor equals 1 Whr - Add to total
-        wh_today[Time.hour()] += 1;
-
 #ifdef STATEDEBUG
         digitalWrite(state, LOW);
 #endif
@@ -352,7 +353,6 @@ void handle_sensor(void)
         digitalWrite(state, HIGH);
 #endif
     }
-    */
 }
 /**
  * @brief     Initializes GPIO for debugging state machine output
@@ -385,6 +385,7 @@ void callback(char *topic, byte *payload, unsigned int length)
  */
 void check_mqtt(void)
 {
+    #ifdef MQTT
     if (client.isConnected())
     {
         client.loop();
@@ -398,6 +399,7 @@ void check_mqtt(void)
             Serial.printf("Client reconnected\n");
         }
     }
+    #endif
 }
 
 /**
@@ -414,9 +416,11 @@ void transmit_prices(int start_stop[12][2], int size)
     }
     // Publish the cheap hours to cloud
     Particle.publish("Low price hours", data, PRIVATE);
+    #ifdef MQTT
     // Publish cheap hour to MQTT
     client.publish("prices", data);
     client.loop();
+    #endif
 #ifdef STATEDEBUG
     digitalWrite(state, LOW);
 #endif
