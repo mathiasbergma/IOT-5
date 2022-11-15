@@ -137,7 +137,7 @@ void loop()
   }
   if (ScreenUpdate)
   {
-    ScreenUpdate=false;
+    ScreenUpdate = false;
     // graph on top
     int originX = 5;
     int originY = 210;
@@ -210,48 +210,51 @@ void graph(int originX, int originY, double values[24], int sizeX, int sizeY, ch
   }
   int numberOfMarks = 24;
   int boxSize = (sizeX / numberOfMarks);
-  for (int i = 0; i < 24; i++)
+  if (!(graphRange == 0))
   {
-    // posBlock[i] = map(values[i], 0, graphRange, originY, (originY - sizeY));
-    posBlock[i] = map(values[i], 0, graphRange, originY, (originY - sizeY));
-    ddd[i] = map(values[i], 0, graphRange, sizeY, 0);
+    for (int i = 0; i < 24; i++)
+    {
+      // posBlock[i] = map(values[i], 0, graphRange, originY, (originY - sizeY));
+      posBlock[i] = map(values[i], 0, graphRange, originY, (originY - sizeY));
+      ddd[i] = map(values[i], 0, graphRange, sizeY, 0);
+    }
   }
-
   // draw the blocks - draw only if value differs
   for (int i = 0; i < 24; i++)
   {
     // Choose colour from scheme
-    int colour = 0;
-    switch (scheme)
-    {
-    case 0:
-      colour = TFT_RED;
-      break; // Fixed colour
-    case 1:
-      colour = TFT_GREEN;
-      break; // Fixed colour
-    case 2:
-      colour = TFT_BLUE;
-      break; // Fixed colour
-    case 3:
-      colour = rainbow(map(values[i], minvalue, graphRange, 0, 127));
-      break; // Full spectrum blue to red
-    case 4:
-      colour = rainbow(map(values[i], minvalue, graphRange, 63, 127));
-      break; // Green to red (high temperature etc)
-    case 5:
-      colour = rainbow(map(values[i], minvalue, graphRange, 127, 63));
-      break; // Red to green (low battery etc)
-    default:
-      colour = TFT_BLUE;
-      break; // Fixed colour
-    }
+
     if (graphRange == 0)
     {
       tft.fillRect(originX + (i * boxSize), (originY - sizeY), (boxSize), (sizeY), TFT_GREY);
     }
     else
     {
+      int colour = 0;
+      switch (scheme)
+      {
+      case 0:
+        colour = TFT_RED;
+        break; // Fixed colour
+      case 1:
+        colour = TFT_GREEN;
+        break; // Fixed colour
+      case 2:
+        colour = TFT_BLUE;
+        break; // Fixed colour
+      case 3:
+        colour = rainbow(map(values[i], minvalue, graphRange, 0, 127));
+        break; // Full spectrum blue to red
+      case 4:
+        colour = rainbow(map(values[i], minvalue, graphRange, 63, 127));
+        break; // Green to red (high temperature etc)
+      case 5:
+        colour = rainbow(map(values[i], minvalue, graphRange, 127, 63));
+        break; // Red to green (low battery etc)
+      default:
+        colour = TFT_BLUE;
+        break; // Fixed colour
+      }
       tft.fillRect(originX + (i * boxSize), (originY - sizeY), (boxSize), (ddd[i]), TFT_GREY);
       tft.fillRect(originX + (i * boxSize), posBlock[i], (boxSize - 1), (originY - posBlock[i]), colour);
     }
@@ -261,7 +264,7 @@ void graph(int originX, int originY, double values[24], int sizeX, int sizeY, ch
     tft.drawCentreString(buf, originX + (boxSize / 2) + boxSize * i, originY, 1);
   }
 
-  tft.fillRect(originX + sizeX,originY - sizeY,50,sizeY,TFT_BLACK);
+  tft.fillRect(originX + sizeX, originY - sizeY, 50, sizeY, TFT_BLACK);
   char buf[20];
   sprintf(buf, "MAX: %d", graphRange);
   tft.drawString(buf, originX + sizeX - boxSize, originY - sizeY, 2);
