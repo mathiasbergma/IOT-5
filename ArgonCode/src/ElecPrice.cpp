@@ -242,9 +242,15 @@ void loop()
     {
         // send everything relavant on new connect
         // needs a bit og delay to ensure device is ready
+        update_JSON();
         char buffer[255];
         sprintf(buffer, "{\"watt\":%d}", calc_power);
         WattCharacteristic.setValue(buffer);
+        DkkYesterdayCharacteristic.setValue(pricesyesterday_Json);
+        DkkTodayCharacteristic.setValue(pricestoday_Json);       // string Kr/kwhr
+        DkkTomorrowCharacteristic.setValue(pricestomorrow_Json); // string Kr/kwhr
+        WhrYesterdayCharacteristic.setValue(wh_yesterday_Json);  // string Whr
+        WhrTodayCharacteristic.setValue(wh_today_Json);          // Whr used in the corresponding hour
         DkkYesterdayCharacteristic.setValue(pricesyesterday_Json.c_str());
         DkkTodayCharacteristic.setValue(pricestoday_Json.c_str());       // string Kr/kwhr
         DkkTomorrowCharacteristic.setValue(pricestomorrow_Json.c_str()); // string Kr/kwhr
