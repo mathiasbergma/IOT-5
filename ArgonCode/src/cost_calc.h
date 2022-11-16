@@ -4,7 +4,6 @@
 #include "state_variables.h"
 #define DELTA_OFFSET 0.3
 
-extern statemachine state;
 
 /** @brief The purpose of the function is to identify the hours at which the highest and lowest cost are.
  *  Furthermore neighbouring low cost hour are identified and saved in an array for easy presentation
@@ -82,14 +81,8 @@ int calc_low(int low_price_intervals[12][2], double * cost, int * cost_hour, int
         Serial.printf("%02d to %02d\n",low_price_intervals[z][0],low_price_intervals[z][1]);
     }
 
-    // Calculations are done - set state
-    #ifdef STATEDEBUG
-            digitalWrite(state, LOW);
-    #endif
-    state = TRANSMIT_PRICE;
-    #ifdef STATEDEBUG
-            digitalWrite(state, HIGH);
-    #endif
+    // Calculations are done - set flag
+    TRANSMIT_PRICE = true;
 
     return cnt;
 }

@@ -22,8 +22,6 @@
 #define MAX_TRANSMIT_BUFF 128
 #define SLEEP_DURATION 30000
 
-statemachine state;
-
 int oneShotGuard = -1;
 int oneShotGuard2 = -1;
 int oneShotGuard3 = -1;
@@ -45,13 +43,11 @@ String pricestomorrow_Json;
 String pricesyesterday_Json;
 String wh_today_Json;
 String wh_yesterday_Json;
-bool getTodayFLAG = false;
 
 void timer_callback(void);                                // Timer callback function
 void init_memory(void);                                   // Initialize memory for the wh and price arrays
 void handle_sensor(void);                                 // Handles the sensor reading and calculation of power
 void check_mqtt(void);                                    // Check if MQTT is connected - Reconnect of needed
-void init_GPIO(void);                                     // Initialize GPIO pins
 void transmit_prices(int start_stop[12][2], int cnt);     // Transmits low price intervals to MQTT
 void myPriceHandler(const char *event, const char *data); // Handler for webhook
 
@@ -71,12 +67,8 @@ SYSTEM_THREAD(ENABLED);
 
 void setup()
 {
-    init_GPIO();
+    STARTUP = true;
 
-    state = STARTUP;
-#ifdef STATEDEBUG
-    digitalWrite(state, LOW);
-#endif
     waitUntil(Particle.connected);
 
     // setup BLE
@@ -99,8 +91,6 @@ void setup()
     // Subscribe to the integration response event
     Particle.subscribe("prices", myHandler, MY_DEVICES);
     
-    // Publish state variable to Particle cloud
-    Particle.variable("State", state);
 
 #ifdef USEMQTT
     // connect to the mqtt broker(unique id by Time.now())
@@ -118,13 +108,6 @@ void setup()
     }
 #endif
 
-#ifdef STATEDEBUG
-    digitalWrite(state, HIGH);
-#endif
-    // state = GET_DATA;
-#ifdef STATEDEBUG
-    digitalWrite(state, HIGH);
-#endif
     // Print current time
     Serial.printf("Current HH:MM: %02d:%02d\n", Time.hour(), Time.minute());
     timer.start();
@@ -132,86 +115,82 @@ void setup()
 
 void loop()
 {
-    if (state == STARTUP)
+    static int start_stop[12][2] = {0};
+    static int cnt = 0;
+
+    if (STARTUP)
     {
         // Fill price arrays with data from webhook
         Serial.printf("Getting price data for yesterday\n");
         //get_data(Time.day() - 1);
         //delay(10000);
         get_data(Time.day() - 1);
-        while (state != CALCULATE)
+        while (!CALCULATE)
         {
             delay(500);
-            Serial.printf("State: %d\n", state);
+            Serial.printf("CALCULATE=: %d\n", CALCULATE);
         }
+        CALCULATE = false;
+        /* Prices have been fetched. New prices are stored in array for tomorrow.
+        *  We therefore need to rotate the arrays to get the correct prices for today.
+        */
         rotate_prices();
-        state = GET_DATA;
+        
         Serial.printf("Getting price data for today\n");
         get_data(Time.day());
-        while (state != CALCULATE)
+        while (!CALCULATE)
         {
             delay(500);
-            Serial.printf("State: %d\n", state);
+            Serial.printf("CALCULATE: %d\n", CALCULATE);
         }
         rotate_prices();
-        state = GET_DATA;
+
         if (Time.hour() > PULL_TIME_1)
         {
             Serial.printf("Getting price data for tomorrow\n");
             get_data(Time.day() + 1);
-            state = AWAITING_DATA;
+            AWAITING_DATA = true;
+            CALCULATE = false;
         }
         else
         {
             Serial.printf("The prices for tomorrov will be pulled at %d:00\n", PULL_TIME_1);
-            state = CALCULATE;
+            CALCULATE = true;
         }
+        STARTUP = false;
     }
-    Serial.printf("State: %d\n", state);
-    static int start_stop[12][2] = {0};
-    static int cnt = 0;
 
 #ifdef USEMQTT
     check_mqtt();
 #endif
 
     // Is it time to update the prices or has it been requested?
-    if (state == GET_DATA)
+    if (GET_DATA)
     {
-#ifdef STATEDEBUG
-        digitalWrite(state, LOW);
-#endif
-        state = AWAITING_DATA;
-#ifdef STATEDEBUG
-        digitalWrite(state, HIGH);
-#endif
+        AWAITING_DATA = true;
 
         get_data(Time.day() + 1);
+        GET_DATA = false;
     }
 
     // Has the prices for today arrived?
-    if (state == CALCULATE)
+    if (CALCULATE)
     {
         update_JSON();
         cnt = calc_low(start_stop, cost_today, cost_hour, range);
         Serial.printf("Current HH:MM: %02d:%02d\n", Time.hour(), Time.minute());
-        state = TRANSMIT_PRICE;
+        TRANSMIT_PRICE = true;
+        CALCULATE = false;
     }
 
-    if (state == TRANSMIT_PRICE)
+    if (TRANSMIT_PRICE)
     {
         transmit_prices(start_stop, cnt);
-
-#ifdef STATEDEBUG
-        digitalWrite(state, LOW);
-#endif
-        state = STANDBY_STATE;
-#ifdef STATEDEBUG
-        digitalWrite(state, HIGH);
-#endif
+        STANDBY_STATE = true;
+        TRANSMIT_PRICE = false;
     }
 
-    if (state == TRANSMIT_SENSOR) // Did we receive a request for updated values
+    if (TRANSMIT_SENSOR) // Did we receive a request for updated values
     {
         Serial.printf("Received power/get\n");
         // One flash from sensor equals 1 Whr - Add to total
@@ -225,22 +204,17 @@ void loop()
         sprintf(buffer, "{\"watt\":%d}", calc_power);
         WattCharacteristic.setValue(buffer);
 
-#ifdef STATEDEBUG
-        digitalWrite(state, LOW);
-#endif
-        state = STANDBY_STATE;
-#ifdef STATEDEBUG
-        digitalWrite(state, HIGH);
-#endif
+        //state = STANDBY_STATE;
+        TRANSMIT_SENSOR = false;
     }
 
-    if (state == ROTATE)
+    if (ROTATE)
     {
         rotate_prices();
-        state = STANDBY_STATE;
+        ROTATE = false;
     }
 
-    if (state == UPDATE_WH_TODAY)
+    if (UPDATE_WH_TODAY)
     {
 #ifdef USEMQTT
         char buffer[16];
@@ -248,7 +222,7 @@ void loop()
         client.publish("watthour", buffer);
 #endif
         hourly_JSON_update();
-        state = STANDBY_STATE;
+        UPDATE_WH_TODAY = false;
     }
 
     if (NewBLEConnection & ((millis() - last_connect) > 1400))
@@ -366,55 +340,21 @@ void handle_sensor(void)
     // Check if we have a valid reading. I.e. at least 100 ms since last reading, which is equal to 36kW
     if (delta > 100)
     {
-#ifdef STATEDEBUG
-        digitalWrite(state, LOW);
-#endif
-        // Update state machine - Reading sensor
-        state = SENSOR_READ;
-#ifdef STATEDEBUG
-        digitalWrite(state, HIGH);
-#endif
+        // We have a valid reading
         calc_power = WATT_CONVERSION_CONSTANT / delta;
         last_read = current_reading;
 
         // One flash from sensor equals 1 Whr - Add to total
         wh_today[currentHour] += 1;
 
-#ifdef STATEDEBUG
-        digitalWrite(state, LOW);
-#endif
-        // Update state machine - Transmit sensor values
-        state = TRANSMIT_SENSOR;
-// state = prev_state;
-#ifdef STATEDEBUG
-        digitalWrite(state, HIGH);
-#endif
+        // Update flag - Transmit sensor values
+        TRANSMIT_SENSOR = true;
     }
-}
-/**
- * @brief     Initializes GPIO for debugging state machine output
- */
-void init_GPIO(void)
-{
-    pinMode(SENSOR_READ, OUTPUT);
-    pinMode(GET_DATA, OUTPUT);
-    pinMode(CALCULATE, OUTPUT);
-    pinMode(TRANSMIT_PRICE, OUTPUT);
-    pinMode(TRANSMIT_SENSOR, OUTPUT);
-    pinMode(STANDBY_STATE, OUTPUT);
-    pinMode(AWAITING_DATA, OUTPUT);
-    pinMode(STARTUP, OUTPUT);
 }
 
 void callback(char *topic, byte *payload, unsigned int length)
 {
-#ifdef STATEDEBUG
-    digitalWrite(state, LOW);
-#endif
-    state = GET_DATA;
-#ifdef STATEDEBUG
-    digitalWrite(state, HIGH);
-#endif
+    GET_DATA = true;    
 }
 
 /** @brief Reconnects MQTT client if disconnected
@@ -480,24 +420,19 @@ void check_time(void)
     if ((currentHour == PULL_TIME_1) && currentDay != oneShotGuard)
     {
         oneShotGuard = currentDay;
-#ifdef STATEDEBUG
-        digitalWrite(state, LOW);
-#endif
-        state = GET_DATA;
-#ifdef STATEDEBUG
-        digitalWrite(state, HIGH);
-#endif
+        GET_DATA = true;
+
     }
     if ((currentHour == PULL_TIME_2) && currentDay != oneShotGuard2)
     {
         oneShotGuard2 = currentDay;
 
-        state = ROTATE;
+        ROTATE = true;
     }
-    if (currentMinute == 1 && currentHour != oneShotGuard3)
+    if (currentMinute == 0 && currentHour != oneShotGuard3)
     {
         oneShotGuard3 = currentHour;
         // Update the wh_today array
-        state = UPDATE_WH_TODAY;
+        UPDATE_WH_TODAY = true;
     }
 }

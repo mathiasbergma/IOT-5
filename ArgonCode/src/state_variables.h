@@ -1,18 +1,15 @@
 #ifndef STATE_VARIABLES_H
 #define STATE_VARIABLES_H
 
-enum statemachine
-{
-    SENSOR_READ = 0,
-    GET_DATA = 1,
-    CALCULATE = 2,
-    TRANSMIT_PRICE = 3,
-    TRANSMIT_SENSOR = 4,
-    STANDBY_STATE = 5,
-    AWAITING_DATA = 6,
-    STARTUP = 10,
-    ROTATE = 11,
-    UPDATE_WH_TODAY = 12,
-};
+bool SENSOR_READ = false;
+bool GET_DATA = false;
+bool CALCULATE = false;
+bool TRANSMIT_PRICE = false;
+bool TRANSMIT_SENSOR = false;
+bool STANDBY_STATE = false;
+bool AWAITING_DATA = false;
+bool STARTUP = false;
+bool ROTATE = false;
+bool UPDATE_WH_TODAY = false;
 
 #endif

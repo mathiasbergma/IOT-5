@@ -5,6 +5,6 @@
         "*.ino": "cpp"
     },
     "particle.targetDevice": "bacon",
-    "particle.firmwareVersion": "4.0.0",
+    "particle.firmwareVersion": "5.1.0",
     "particle.targetPlatform": "argon"
 }

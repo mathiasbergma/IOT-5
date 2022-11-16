@@ -3,7 +3,6 @@
 
 #define MAX_RANGE 24
 
-extern statemachine state;
 char temp[2 * 513];    // Create an array that can hold the entire transmission
 double * cost_yesterday;
 double * cost_today;
@@ -86,12 +85,6 @@ void myHandler(const char *event, const char *data)
                 break;     // Break the while loop
             }
         }
-#ifdef STATEDEBUG
-        digitalWrite(state, LOW);
-#endif
-        state = CALCULATE;
-#ifdef STATEDEBUG
-        digitalWrite(state, HIGH);
-#endif
+        CALCULATE = true;
     }
 }
