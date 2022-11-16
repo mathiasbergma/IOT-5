@@ -238,11 +238,6 @@ void loop()
         DkkTomorrowCharacteristic.setValue(pricestomorrow_Json); // string Kr/kwhr
         WhrYesterdayCharacteristic.setValue(wh_yesterday_Json);  // string Whr
         WhrTodayCharacteristic.setValue(wh_today_Json);          // Whr used in the corresponding hour
-        DkkYesterdayCharacteristic.setValue(pricesyesterday_Json.c_str());
-        DkkTodayCharacteristic.setValue(pricestoday_Json.c_str());       // string Kr/kwhr
-        DkkTomorrowCharacteristic.setValue(pricestomorrow_Json.c_str()); // string Kr/kwhr
-        WhrYesterdayCharacteristic.setValue(wh_yesterday_Json.c_str());  // string Whr
-        WhrTodayCharacteristic.setValue(wh_today_Json.c_str());          // Whr used in the corresponding hour
 
         NewBLEConnection = false;
         Serial.printf("ble_connected\n");
