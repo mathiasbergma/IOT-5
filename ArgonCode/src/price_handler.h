@@ -1,3 +1,4 @@
+#include "Particle.h"
 #include "state_variables.h"
 
 #define MAX_RANGE 24

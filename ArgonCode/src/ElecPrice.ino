@@ -45,15 +45,14 @@ String pricestomorrow_Json;
 String pricesyesterday_Json;
 String wh_today_Json;
 String wh_yesterday_Json;
+bool getTodayFLAG = false;
 
 void timer_callback(void);                                // Timer callback function
 void init_memory(void);                                   // Initialize memory for the wh and price arrays
-void get_data(int day);                                   // Request data from webhook integration
 void handle_sensor(void);                                 // Handles the sensor reading and calculation of power
 void check_mqtt(void);                                    // Check if MQTT is connected - Reconnect of needed
 void init_GPIO(void);                                     // Initialize GPIO pins
 void transmit_prices(int start_stop[12][2], int cnt);     // Transmits low price intervals to MQTT
-void handle_sensor(void);                                 // Handles the sensor reading and calculation of power
 void myPriceHandler(const char *event, const char *data); // Handler for webhook
 
 Timer timer(60000, check_time, true); // One-shot timer.
@@ -79,13 +78,6 @@ void setup()
     digitalWrite(state, LOW);
 #endif
     waitUntil(Particle.connected);
-#ifdef STATEDEBUG
-    digitalWrite(state, HIGH);
-#endif
-    state = GET_DATA;
-#ifdef STATEDEBUG
-    digitalWrite(state, HIGH);
-#endif
 
     // setup BLE
     ble_setup();
@@ -94,7 +86,7 @@ void setup()
     init_memory();
 
     Time.zone(1);
-    Time.beginDST();
+    // Time.beginDST();
 
     pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                // Setup pinmode for LDR pin
     attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING); // Attach interrup that will be called when rising
@@ -106,7 +98,7 @@ void setup()
 
     // Subscribe to the integration response event
     Particle.subscribe("prices", myHandler, MY_DEVICES);
-
+    
     // Publish state variable to Particle cloud
     Particle.variable("State", state);
 
@@ -117,6 +109,7 @@ void setup()
     // publish/subscribe
     if (client.isConnected())
     {
+        Serial.printf("Connected to MQTT broker\n");
         // Debugging publish
         client.publish("power/get", "hello world");
         // Subscribe to 2 topics
@@ -124,10 +117,57 @@ void setup()
         client.subscribe("power/prices");
     }
 #endif
+
+#ifdef STATEDEBUG
+    digitalWrite(state, HIGH);
+#endif
+    // state = GET_DATA;
+#ifdef STATEDEBUG
+    digitalWrite(state, HIGH);
+#endif
+    // Print current time
+    Serial.printf("Current HH:MM: %02d:%02d\n", Time.hour(), Time.minute());
+    timer.start();
 }
 
 void loop()
 {
+    if (state == STARTUP)
+    {
+        // Fill price arrays with data from webhook
+        Serial.printf("Getting price data for yesterday\n");
+        //get_data(Time.day() - 1);
+        //delay(10000);
+        get_data(Time.day() - 1);
+        while (state != CALCULATE)
+        {
+            delay(500);
+            Serial.printf("State: %d\n", state);
+        }
+        rotate_prices();
+        state = GET_DATA;
+        Serial.printf("Getting price data for today\n");
+        get_data(Time.day());
+        while (state != CALCULATE)
+        {
+            delay(500);
+            Serial.printf("State: %d\n", state);
+        }
+        rotate_prices();
+        state = GET_DATA;
+        if (Time.hour() > PULL_TIME_1)
+        {
+            Serial.printf("Getting price data for tomorrow\n");
+            get_data(Time.day() + 1);
+            state = AWAITING_DATA;
+        }
+        else
+        {
+            Serial.printf("The prices for tomorrov will be pulled at %d:00\n", PULL_TIME_1);
+            state = CALCULATE;
+        }
+    }
+    Serial.printf("State: %d\n", state);
     static int start_stop[12][2] = {0};
     static int cnt = 0;
 
@@ -145,12 +185,14 @@ void loop()
 #ifdef STATEDEBUG
         digitalWrite(state, HIGH);
 #endif
+
         get_data(Time.day() + 1);
     }
 
     // Has the prices for today arrived?
     if (state == CALCULATE)
     {
+        update_JSON();
         cnt = calc_low(start_stop, cost_today, cost_hour, range);
         Serial.printf("Current HH:MM: %02d:%02d\n", Time.hour(), Time.minute());
         state = TRANSMIT_PRICE;
@@ -159,6 +201,14 @@ void loop()
     if (state == TRANSMIT_PRICE)
     {
         transmit_prices(start_stop, cnt);
+
+#ifdef STATEDEBUG
+        digitalWrite(state, LOW);
+#endif
+        state = STANDBY_STATE;
+#ifdef STATEDEBUG
+        digitalWrite(state, HIGH);
+#endif
     }
 
     if (state == TRANSMIT_SENSOR) // Did we receive a request for updated values
@@ -208,7 +258,7 @@ void loop()
         char buffer[255];
         sprintf(buffer, "{\"watt\":%d}", calc_power);
         WattCharacteristic.setValue(buffer);
-        DkkYesterdayCharacteristic.setValue(pricestoday_Json.c_str());
+        DkkYesterdayCharacteristic.setValue(pricesyesterday_Json.c_str());
         DkkTodayCharacteristic.setValue(pricestoday_Json.c_str());       // string Kr/kwhr
         DkkTomorrowCharacteristic.setValue(pricestomorrow_Json.c_str()); // string Kr/kwhr
         WhrYesterdayCharacteristic.setValue(wh_yesterday_Json.c_str());  // string Whr
@@ -371,7 +421,7 @@ void callback(char *topic, byte *payload, unsigned int length)
  */
 void check_mqtt(void)
 {
-#ifdef MQTT
+#ifdef USEMQTT
     if (client.isConnected())
     {
         client.loop();
@@ -402,17 +452,10 @@ void transmit_prices(int start_stop[12][2], int size)
     }
     // Publish the cheap hours to cloud
     Particle.publish("Low price hours", data, PRIVATE);
-#ifdef MQTT
+#ifdef USEMQTT
     // Publish cheap hour to MQTT
     client.publish("prices", data);
     client.loop();
-#endif
-#ifdef STATEDEBUG
-    digitalWrite(state, LOW);
-#endif
-    state = STANDBY_STATE;
-#ifdef STATEDEBUG
-    digitalWrite(state, HIGH);
 #endif
 }
 /**
@@ -451,7 +494,10 @@ void check_time(void)
 
         state = ROTATE;
     }
-
-    // Update the wh_today array
-    state = UPDATE_WH_TODAY;
+    if (currentMinute == 1 && currentHour != oneShotGuard3)
+    {
+        oneShotGuard3 = currentHour;
+        // Update the wh_today array
+        state = UPDATE_WH_TODAY;
+    }
 }
