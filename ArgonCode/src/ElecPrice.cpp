@@ -2,7 +2,7 @@
 //       THIS IS A GENERATED FILE - DO NOT EDIT       //
 /******************************************************/
 
-#line 1 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
+#line 1 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
 #include "../lib/MQTT/src/MQTT.h"
 #include "BLE_include.h"
 #include "application.h"
@@ -15,6 +15,8 @@
 #include <fcntl.h>
 
 //#define STATEDEBUG
+//#define USEMQTT
+
 void setup();
 void loop();
 void init_memory();
@@ -22,9 +24,7 @@ void rotate_prices();
 void BLEOnConnectcallback(const BlePeerDevice &peer, void *context);
 void transmit_prices(int start_stop[12][2], int size);
 void check_time(void);
-#line 13 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
-#define USEMQTT
-
+#line 15 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
 #define KW_SENSOR_PIN D8
 #define WATT_CONVERSION_CONSTANT 3600000
 #define HOST "192.168.0.103"
@@ -137,26 +137,33 @@ void loop()
         Serial.printf("Getting price data for yesterday\n");
         //get_data(Time.day() - 1);
         //delay(10000);
+         int count=0;
         get_data(Time.day() - 1);
         while (!CALCULATE)
         {
-            delay(500);
-            Serial.printf("CALCULATE=: %d\n", CALCULATE);
+            delay(1000);
+            Serial.printf("Count1=: %d\n", count);
+            count++;
         }
         CALCULATE = false;
         /* Prices have been fetched. New prices are stored in array for tomorrow.
         *  We therefore need to rotate the arrays to get the correct prices for today.
         */
+       delay(5000);
+       count=0;
         rotate_prices();
         
         Serial.printf("Getting price data for today\n");
         get_data(Time.day());
         while (!CALCULATE)
         {
-            delay(500);
-            Serial.printf("CALCULATE: %d\n", CALCULATE);
+            delay(1000);
+            Serial.printf("Count2=: %d\n", count);
+            count++;
+
         }
         rotate_prices();
+        delay(5000);
 
         if (Time.hour() > PULL_TIME_1)
         {
@@ -251,11 +258,6 @@ void loop()
         DkkTomorrowCharacteristic.setValue(pricestomorrow_Json); // string Kr/kwhr
         WhrYesterdayCharacteristic.setValue(wh_yesterday_Json);  // string Whr
         WhrTodayCharacteristic.setValue(wh_today_Json);          // Whr used in the corresponding hour
-        DkkYesterdayCharacteristic.setValue(pricesyesterday_Json.c_str());
-        DkkTodayCharacteristic.setValue(pricestoday_Json.c_str());       // string Kr/kwhr
-        DkkTomorrowCharacteristic.setValue(pricestomorrow_Json.c_str()); // string Kr/kwhr
-        WhrYesterdayCharacteristic.setValue(wh_yesterday_Json.c_str());  // string Whr
-        WhrTodayCharacteristic.setValue(wh_today_Json.c_str());          // Whr used in the corresponding hour
 
         NewBLEConnection = false;
         Serial.printf("ble_connected\n");

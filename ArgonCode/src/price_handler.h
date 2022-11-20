@@ -43,7 +43,7 @@ void myHandler(const char *event, const char *data)
     // "eventname/<transmission part no>"
     char event_str[12];
     strcpy(event_str, event);
-    Serial.printf("event_str: %s\n", event_str);
+    //Serial.printf("event_str: %s\n", event_str);
     // Token used for strtok()
     char *token = NULL;
     // Extract the numbered part of eventname and use it for indexing "temp"
@@ -68,22 +68,17 @@ void myHandler(const char *event, const char *data)
             token = strtok(NULL, ",!");
             if (cost_hour[i] >= 0 && cost_hour[i] < 7)
             {
-                 cost_tomorrow[i] = (atof(token) / 1000)+transport.low;
+                 cost_tomorrow[i] = (atof(token) / 1000.0)+transport.low;
             }
             else if (cost_hour[i] > 16 && cost_hour[i] < 22)
             {
-                cost_tomorrow[i] = (atof(token) / 1000)+transport.high;
+                cost_tomorrow[i] = (atof(token) / 1000.0)+transport.high;
             }
             else
             {
-                cost_tomorrow[i] = (atof(token) / 1000)+transport.medium;
+                cost_tomorrow[i] = (atof(token) / 1000.0)+transport.medium;
             }
 
-            if ((token = strtok(NULL, ",!")) == NULL) // Received data count is less than 24.
-            {
-                range = i; // Update range, such that the rest of program flow is aware of size
-                break;     // Break the while loop
-            }
         }
         CALCULATE = true;
     }

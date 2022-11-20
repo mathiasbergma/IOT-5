@@ -10,7 +10,7 @@
 #include <fcntl.h>
 
 //#define STATEDEBUG
-#define USEMQTT
+//#define USEMQTT
 
 #define KW_SENSOR_PIN D8
 #define WATT_CONVERSION_CONSTANT 3600000
@@ -124,26 +124,33 @@ void loop()
         Serial.printf("Getting price data for yesterday\n");
         //get_data(Time.day() - 1);
         //delay(10000);
+         int count=0;
         get_data(Time.day() - 1);
         while (!CALCULATE)
         {
-            delay(500);
-            Serial.printf("CALCULATE=: %d\n", CALCULATE);
+            delay(1000);
+            Serial.printf("Count1=: %d\n", count);
+            count++;
         }
         CALCULATE = false;
         /* Prices have been fetched. New prices are stored in array for tomorrow.
         *  We therefore need to rotate the arrays to get the correct prices for today.
         */
+       delay(5000);
+       count=0;
         rotate_prices();
         
         Serial.printf("Getting price data for today\n");
         get_data(Time.day());
         while (!CALCULATE)
         {
-            delay(500);
-            Serial.printf("CALCULATE: %d\n", CALCULATE);
+            delay(1000);
+            Serial.printf("Count2=: %d\n", count);
+            count++;
+
         }
         rotate_prices();
+        delay(5000);
 
         if (Time.hour() > PULL_TIME_1)
         {

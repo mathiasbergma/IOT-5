@@ -3,7 +3,7 @@
 
 bool SENSOR_READ = false;
 bool GET_DATA = false;
-bool CALCULATE = false;
+volatile bool CALCULATE = false;
 bool TRANSMIT_PRICE = false;
 bool TRANSMIT_SENSOR = false;
 bool STANDBY_STATE = false;
