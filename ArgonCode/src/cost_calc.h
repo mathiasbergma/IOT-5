@@ -18,8 +18,8 @@ int calc_low(int low_price_intervals[12][2], double * cost, int size)
 
     double delta;
     double small_offset;
-    double last_big = 0;
-    double last_small = 100; // Assign any absurdly high value
+    double last_big = 0.0;
+    double last_small = 1000.0; // Assign any absurdly high value
 
     for (int i = 0; i < size; i++)
     {

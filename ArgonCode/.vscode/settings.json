@@ -4,7 +4,12 @@
     "files.associations": {
         "*.ino": "cpp"
     },
+<<<<<<< HEAD
     "particle.targetDevice": "bacon",
+=======
+<<<<<<< HEAD
+    "particle.targetDevice": "banjo_chicken",
+>>>>>>> 670a2f4dad8f0647fc9090b810e6ecc72a272292
     "particle.firmwareVersion": "5.1.0",
     "particle.targetPlatform": "argon"
 }

@@ -2,7 +2,7 @@
 //       THIS IS A GENERATED FILE - DO NOT EDIT       //
 /******************************************************/
 
-#line 1 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
+#line 1 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
 #include "../lib/MQTT/src/MQTT.h"
 #include "BLE_include.h"
 #include "application.h"
@@ -15,6 +15,9 @@
 #include <fcntl.h>
 
 //#define STATEDEBUG
+//#define USEMQTT
+
+// use rising sensor
 void setup();
 void loop();
 void init_memory();
@@ -22,8 +25,8 @@ void rotate_prices();
 void BLEOnConnectcallback(const BlePeerDevice &peer, void *context);
 void transmit_prices(int start_stop[12][2], int size);
 void check_time(void);
-#line 13 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
-#define USEMQTT
+#line 16 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
+#define RISING SENSOR
 
 #define KW_SENSOR_PIN D8
 #define WATT_CONVERSION_CONSTANT 3600000
@@ -94,7 +97,12 @@ void setup()
     // Time.beginDST();
 
     pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                // Setup pinmode for LDR pin
+#ifdef RISING_SENSOR    
     attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING); // Attach interrup that will be called when rising
+#else
+    attachInterrupt(KW_SENSOR_PIN, handle_sensor, FALLING);
+#endif
+
 #ifdef USEMQTT
     // Resolve MQTT broker IP address
     IPAddress IP = resolver.search("homeassistant.local");
@@ -137,27 +145,38 @@ void loop()
         // Fill price arrays with data from webhook
         Serial.printf("Getting price data for yesterday\n");
         //get_data(Time.day() - 1);
+<<<<<<< HEAD
         //delay(5000);
+=======
+        //delay(10000);
+         int count=0;
+>>>>>>> 670a2f4dad8f0647fc9090b810e6ecc72a272292
         get_data(Time.day() - 1);
         while (!CALCULATE)
         {
-            delay(500);
-            Serial.printf("CALCULATE=: %d\n", CALCULATE);
+            delay(1000);
+            Serial.printf("Count1=: %d\n", count);
+            count++;
         }
         CALCULATE = false;
         /* Prices have been fetched. New prices are stored in array for tomorrow.
         *  We therefore need to rotate the arrays to get the correct prices for today.
         */
+       delay(5000);
+       count=0;
         rotate_prices();
         
         Serial.printf("Getting price data for today\n");
         get_data(Time.day());
         while (!CALCULATE)
         {
-            delay(500);
-            Serial.printf("CALCULATE: %d\n", CALCULATE);
+            delay(1000);
+            Serial.printf("Count2=: %d\n", count);
+            count++;
+
         }
         rotate_prices();
+        delay(5000);
 
         if (Time.hour() >= PULL_TIME_1)
         {
@@ -189,7 +208,11 @@ void loop()
     if (CALCULATE)
     {
         update_JSON();
+<<<<<<< HEAD
         cnt = calc_low(start_stop, cost_today, range);
+=======
+        cnt = calc_low(start_stop, cost_today, MAX_RANGE);
+>>>>>>> 670a2f4dad8f0647fc9090b810e6ecc72a272292
         Serial.printf("Current HH:MM: %02d:%02d\n", Time.hour(), Time.minute());
         TRANSMIT_PRICE = true;
         CALCULATE = false;

@@ -185,7 +185,7 @@ static void DkkTodayNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharacteri
         JSONVar myArray = myObject["pricestoday"];
         for (size_t d = 0; d < 24; d++)
         {
-            pricetoday[d] = myArray[d];
+            pricetoday[d] = 1000*(double)myArray[d];
         }
     }
     ScreenUpdate = true;
@@ -214,7 +214,7 @@ static void DkkYesterdayNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharac
         JSONVar myArray = myObject["pricesyesterday"];
         for (size_t d = 0; d < 24; d++)
         {
-            pricesyesterday[d] = myArray[d];
+            pricesyesterday[d] = 1000*(double)myArray[d];
         }
     }
     ScreenUpdate = true;
@@ -243,7 +243,7 @@ static void DkkTomorrowNotifyCallback(BLERemoteCharacteristic *pBLERemoteCharact
         JSONVar myArray = myObject["pricestomorrow"];
         for (size_t d = 0; d < 24; d++)
         {
-            pricetomorrow[d] = myArray[d];
+            pricetomorrow[d] = 1000*(double)myArray[d];
         }
     }
     ScreenUpdate = true;

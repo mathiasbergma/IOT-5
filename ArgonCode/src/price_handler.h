@@ -7,7 +7,6 @@ char temp[2 * 513];    // Create an array that can hold the entire transmission
 double * cost_yesterday;
 double * cost_today;
 double * cost_tomorrow;
-int range = MAX_RANGE; // Max received count. Updated if received count is smaller
 
 const struct transport_t
 {
@@ -42,7 +41,7 @@ void myHandler(const char *event, const char *data)
     // "eventname/<transmission part no>"
     char event_str[12];
     strcpy(event_str, event);
-    Serial.printf("event_str: %s\n", event_str);
+    //Serial.printf("event_str: %s\n", event_str);
     // Token used for strtok()
     char *token = NULL;
     // Extract the numbered part of eventname and use it for indexing "temp"
@@ -59,30 +58,25 @@ void myHandler(const char *event, const char *data)
         Serial.printf("%s\n", temp);
 
         // Tokenize the string. i.e. split the string so we can get to the data
-        token = strtok(temp, ",");
-        for (int i = 0; i < range; i++)
+        token = strtok(temp, ",!");
+        for (int i = 0; i < MAX_RANGE; i++)
         {
             // Save hour and cost in differen containers
-            //sscanf(token, "%*d-%*d-%*dT%d:%*d:%*d", &cost_hour[i]);
-            //token = strtok(NULL, ",");
+            //sscanf(token, "%*d-%*d-%*dT%d:%*d:%*d", i);
+            //token = strtok(NULL, ",!");
             if (i >= 0 && i < 7)
             {
-                 cost_tomorrow[i] = (atof(token) / 1000)+transport.low;
+                 cost_tomorrow[i] = (atof(token) / 1000.0)+transport.low;
             }
             else if (i > 16 && i < 22)
             {
-                cost_tomorrow[i] = (atof(token) / 1000)+transport.high;
+                cost_tomorrow[i] = (atof(token) / 1000.0)+transport.high;
             }
             else
             {
-                cost_tomorrow[i] = (atof(token) / 1000)+transport.medium;
+                cost_tomorrow[i] = (atof(token) / 1000.0)+transport.medium;
             }
 
-            if ((token = strtok(NULL, ",")) == NULL) // Received data count is less than 24.
-            {
-                range = i; // Update range, such that the rest of program flow is aware of size
-                break;     // Break the while loop
-            }
         }
         CALCULATE = true;
     }
