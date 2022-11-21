@@ -10,7 +10,7 @@
  * @param low_price_intervals 2D array into which to low price times are put
  * @param cost array of costs
 */
-int calc_low(int low_price_intervals[12][2], double * cost, int * cost_hour, int size)
+int calc_low(int low_price_intervals[12][2], double * cost, int size)
 {
     int low_range_hour[24];
     int cnt = 0;
@@ -46,7 +46,7 @@ int calc_low(int low_price_intervals[12][2], double * cost, int * cost_hour, int
         
         if (cost[i] < small_offset)
         {
-            low_range_hour[idx] = cost_hour[i];
+            low_range_hour[idx] = i;
             
             idx++;
         }

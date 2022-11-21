@@ -8,7 +8,6 @@ double * cost_yesterday;
 double * cost_today;
 double * cost_tomorrow;
 int range = MAX_RANGE; // Max received count. Updated if received count is smaller
-int cost_hour[MAX_RANGE];
 
 const struct transport_t
 {
@@ -24,7 +23,7 @@ void get_data(int day)
 {
     
     temp[0] = 0;
-    String data = String::format("{ \"year\": \"%d\", \"month\":\"%02d\", \"day\": \"%02d\", \"day_two\": \"%02d\", \"hour\": \"%02d\" }", Time.year(), Time.month(), day, day + 1, 0);
+    String data = String::format("{ \"year\": \"%d\", \"month\":\"%02d\", \"day\": \"%02d\"}", Time.year(), Time.month(), day);
 
     // Trigger the integration
     Particle.publish("elpriser", data, PRIVATE);
@@ -60,17 +59,17 @@ void myHandler(const char *event, const char *data)
         Serial.printf("%s\n", temp);
 
         // Tokenize the string. i.e. split the string so we can get to the data
-        token = strtok(temp, ",!");
+        token = strtok(temp, ",");
         for (int i = 0; i < range; i++)
         {
             // Save hour and cost in differen containers
-            sscanf(token, "%*d-%*d-%*dT%d:%*d:%*d", &cost_hour[i]);
-            token = strtok(NULL, ",!");
-            if (cost_hour[i] >= 0 && cost_hour[i] < 7)
+            //sscanf(token, "%*d-%*d-%*dT%d:%*d:%*d", &cost_hour[i]);
+            //token = strtok(NULL, ",");
+            if (i >= 0 && i < 7)
             {
                  cost_tomorrow[i] = (atof(token) / 1000)+transport.low;
             }
-            else if (cost_hour[i] > 16 && cost_hour[i] < 22)
+            else if (i > 16 && i < 22)
             {
                 cost_tomorrow[i] = (atof(token) / 1000)+transport.high;
             }
@@ -79,7 +78,7 @@ void myHandler(const char *event, const char *data)
                 cost_tomorrow[i] = (atof(token) / 1000)+transport.medium;
             }
 
-            if ((token = strtok(NULL, ",!")) == NULL) // Received data count is less than 24.
+            if ((token = strtok(NULL, ",")) == NULL) // Received data count is less than 24.
             {
                 range = i; // Update range, such that the rest of program flow is aware of size
                 break;     // Break the while loop

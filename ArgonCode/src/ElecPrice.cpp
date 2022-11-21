@@ -133,10 +133,11 @@ void loop()
 
     if (STARTUP)
     {
+        Serial.printlnf("RSSI=%d", (int8_t) WiFi.RSSI());
         // Fill price arrays with data from webhook
         Serial.printf("Getting price data for yesterday\n");
         //get_data(Time.day() - 1);
-        //delay(10000);
+        //delay(5000);
         get_data(Time.day() - 1);
         while (!CALCULATE)
         {
@@ -158,12 +159,10 @@ void loop()
         }
         rotate_prices();
 
-        if (Time.hour() > PULL_TIME_1)
+        if (Time.hour() >= PULL_TIME_1)
         {
-            Serial.printf("Getting price data for tomorrow\n");
-            get_data(Time.day() + 1);
-            AWAITING_DATA = true;
             CALCULATE = false;
+            GET_DATA = true;
         }
         else
         {
@@ -190,7 +189,7 @@ void loop()
     if (CALCULATE)
     {
         update_JSON();
-        cnt = calc_low(start_stop, cost_today, cost_hour, range);
+        cnt = calc_low(start_stop, cost_today, range);
         Serial.printf("Current HH:MM: %02d:%02d\n", Time.hour(), Time.minute());
         TRANSMIT_PRICE = true;
         CALCULATE = false;
@@ -225,6 +224,7 @@ void loop()
     {
         rotate_prices();
         ROTATE = false;
+        CALCULATE = true;
     }
 
     if (UPDATE_WH_TODAY)
@@ -251,11 +251,6 @@ void loop()
         DkkTomorrowCharacteristic.setValue(pricestomorrow_Json); // string Kr/kwhr
         WhrYesterdayCharacteristic.setValue(wh_yesterday_Json);  // string Whr
         WhrTodayCharacteristic.setValue(wh_today_Json);          // Whr used in the corresponding hour
-        DkkYesterdayCharacteristic.setValue(pricesyesterday_Json.c_str());
-        DkkTodayCharacteristic.setValue(pricestoday_Json.c_str());       // string Kr/kwhr
-        DkkTomorrowCharacteristic.setValue(pricestomorrow_Json.c_str()); // string Kr/kwhr
-        WhrYesterdayCharacteristic.setValue(wh_yesterday_Json.c_str());  // string Whr
-        WhrTodayCharacteristic.setValue(wh_today_Json.c_str());          // Whr used in the corresponding hour
 
         NewBLEConnection = false;
         Serial.printf("ble_connected\n");
