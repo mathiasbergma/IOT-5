@@ -8,6 +8,7 @@ extern String wh_today_Json;
 extern String wh_yesterday_Json;
 extern String pricestoday_Json;
 extern String pricesyesterday_Json;
+extern String pricestomorrow_Json;
 
 void hourly_JSON_update()
 {
@@ -48,6 +49,18 @@ void update_JSON()
         }
     }
     pricestoday_Json += String::format("]}");
+
+     // Updating prices today JSON string
+    pricestomorrow_Json = String::format("{\"pricestomorrow\":[");
+    for (int i = 0; i < 24; i++)
+    {
+        pricestomorrow_Json += String::format("%.2lf", cost_tomorrow[i]);
+        if (i < 23)
+        {
+            pricestomorrow_Json += String::format(",");
+        }
+    }
+    pricestomorrow_Json += String::format("]}");
 
     // Updating watt hours used yesterday JSON string
     wh_yesterday_Json = String::format("{\"WHr_yesterday\":[");

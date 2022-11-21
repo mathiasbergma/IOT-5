@@ -17,6 +17,7 @@
 //#define STATEDEBUG
 //#define USEMQTT
 
+// use rising sensor
 void setup();
 void loop();
 void init_memory();
@@ -24,7 +25,9 @@ void rotate_prices();
 void BLEOnConnectcallback(const BlePeerDevice &peer, void *context);
 void transmit_prices(int start_stop[12][2], int size);
 void check_time(void);
-#line 15 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
+#line 16 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
+#define RISING SENSOR
+
 #define KW_SENSOR_PIN D8
 #define WATT_CONVERSION_CONSTANT 3600000
 #define HOST "192.168.0.103"
@@ -94,7 +97,12 @@ void setup()
     // Time.beginDST();
 
     pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                // Setup pinmode for LDR pin
+#ifdef RISING_SENSOR    
     attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING); // Attach interrup that will be called when rising
+#else
+    attachInterrupt(KW_SENSOR_PIN, handle_sensor, FALLING);
+#endif
+
 #ifdef USEMQTT
     // Resolve MQTT broker IP address
     IPAddress IP = resolver.search("homeassistant.local");
@@ -197,7 +205,7 @@ void loop()
     if (CALCULATE)
     {
         update_JSON();
-        cnt = calc_low(start_stop, cost_today, cost_hour, range);
+        cnt = calc_low(start_stop, cost_today, MAX_RANGE);
         Serial.printf("Current HH:MM: %02d:%02d\n", Time.hour(), Time.minute());
         TRANSMIT_PRICE = true;
         CALCULATE = false;

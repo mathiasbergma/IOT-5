@@ -5,11 +5,7 @@
         "*.ino": "cpp"
     },
 <<<<<<< HEAD
-    "particle.targetDevice": "bacon",
+    "particle.targetDevice": "banjo_chicken",
     "particle.firmwareVersion": "5.1.0",
-=======
-    "particle.targetDevice": "",
-    "particle.firmwareVersion": "4.0.0",
->>>>>>> 6013c95b895300899e758608965565327792c58f
     "particle.targetPlatform": "argon"
 }

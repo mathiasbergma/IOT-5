@@ -7,8 +7,6 @@ char temp[2 * 513];    // Create an array that can hold the entire transmission
 double * cost_yesterday;
 double * cost_today;
 double * cost_tomorrow;
-int range = MAX_RANGE; // Max received count. Updated if received count is smaller
-int cost_hour[MAX_RANGE];
 
 const struct transport_t
 {
@@ -61,16 +59,16 @@ void myHandler(const char *event, const char *data)
 
         // Tokenize the string. i.e. split the string so we can get to the data
         token = strtok(temp, ",!");
-        for (int i = 0; i < range; i++)
+        for (int i = 0; i < MAX_RANGE; i++)
         {
             // Save hour and cost in differen containers
-            sscanf(token, "%*d-%*d-%*dT%d:%*d:%*d", &cost_hour[i]);
-            token = strtok(NULL, ",!");
-            if (cost_hour[i] >= 0 && cost_hour[i] < 7)
+            //sscanf(token, "%*d-%*d-%*dT%d:%*d:%*d", i);
+            //token = strtok(NULL, ",!");
+            if (i >= 0 && i < 7)
             {
                  cost_tomorrow[i] = (atof(token) / 1000.0)+transport.low;
             }
-            else if (cost_hour[i] > 16 && cost_hour[i] < 22)
+            else if (i > 16 && i < 22)
             {
                 cost_tomorrow[i] = (atof(token) / 1000.0)+transport.high;
             }

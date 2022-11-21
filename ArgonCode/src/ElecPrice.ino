@@ -12,6 +12,9 @@
 //#define STATEDEBUG
 //#define USEMQTT
 
+// use rising sensor
+#define RISING SENSOR
+
 #define KW_SENSOR_PIN D8
 #define WATT_CONVERSION_CONSTANT 3600000
 #define HOST "192.168.0.103"
@@ -81,7 +84,12 @@ void setup()
     // Time.beginDST();
 
     pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                // Setup pinmode for LDR pin
+#ifdef RISING_SENSOR    
     attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING); // Attach interrup that will be called when rising
+#else
+    attachInterrupt(KW_SENSOR_PIN, handle_sensor, FALLING);
+#endif
+
 #ifdef USEMQTT
     // Resolve MQTT broker IP address
     IPAddress IP = resolver.search("homeassistant.local");
@@ -184,7 +192,7 @@ void loop()
     if (CALCULATE)
     {
         update_JSON();
-        cnt = calc_low(start_stop, cost_today, cost_hour, range);
+        cnt = calc_low(start_stop, cost_today, MAX_RANGE);
         Serial.printf("Current HH:MM: %02d:%02d\n", Time.hour(), Time.minute());
         TRANSMIT_PRICE = true;
         CALCULATE = false;

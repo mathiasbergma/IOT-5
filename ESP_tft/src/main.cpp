@@ -155,14 +155,14 @@ void loop()
     originY = 260;
     sizeY = 40;
     sizeX = 400;
-    graph(originX, originY, &WHrToday_arr[0], sizeX, sizeY, "KWhr");
+    graph(originX, originY, &Whr_pointer[0], sizeX, sizeY, "KWhr");
 
     // graph on bottom
     originX = 5;
     originY = 310;
     sizeY = 40;
     sizeX = 400;
-    graph(originX, originY, &pricetoday[0], sizeX, sizeY, "Kr/KWhr");
+    graph(originX, originY, &Price_pointer[0], sizeX, sizeY, "Kr/KWhr");
 
     tft.fillRoundRect(5, ypos + radius * 2, 450, 45, 5, TFT_BLACK);
     tft.drawRoundRect(5, ypos + radius * 2, 450, 45, 5, TFT_MAGENTA);
@@ -170,7 +170,7 @@ void loop()
   }
   if (touch_check & ((millis() - touch_time) > 200))
   {
-    if (display_day == 2)
+    if (display_day >= 2)
       display_day = 0;
     else
       display_day++;
