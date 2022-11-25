@@ -76,6 +76,7 @@ void myHandler(const char *event, const char *data)
             {
                 cost_tomorrow[i] = (atof(token) / 1000.0)+transport.medium;
             }
+            token = strtok(NULL, ",!");
 
         }
         CALCULATE = true;

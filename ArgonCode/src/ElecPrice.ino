@@ -83,10 +83,11 @@ void setup()
     Time.zone(1);
     // Time.beginDST();
 
-    pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                // Setup pinmode for LDR pin
 #ifdef RISING_SENSOR    
+    pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);           // Setup pinmode for LDR pin
     attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING); // Attach interrup that will be called when rising
 #else
+    pinMode(KW_SENSOR_PIN, INPUT_PULLUP);           // Setup pinmode for LDR pin
     attachInterrupt(KW_SENSOR_PIN, handle_sensor, FALLING);
 #endif
 

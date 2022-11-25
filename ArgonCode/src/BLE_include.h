@@ -42,7 +42,7 @@ void BLEOnConnectcallback(const BlePeerDevice& peer, void* context);
 
 
 void ble_setup(void){
-    //BLE.selectAntenna(BleAntennaType::EXTERNAL);// change to internal if an external antenna is not attached.
+    BLE.selectAntenna(BleAntennaType::EXTERNAL);// change to internal if an external antenna is not attached.
     BLE.on();
     //*****BLE setup*****
     BLE.addCharacteristic(WattCharacteristic);
