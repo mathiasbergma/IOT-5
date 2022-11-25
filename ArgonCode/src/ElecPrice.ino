@@ -13,7 +13,7 @@
 //#define USEMQTT
 
 // use rising sensor
-#define RISING SENSOR
+#define RISING_SENSOR
 
 #define KW_SENSOR_PIN D8
 #define WATT_CONVERSION_CONSTANT 3600000
@@ -217,6 +217,8 @@ void loop()
         char buffer[255];
         sprintf(buffer, "{\"watt\":%d}", calc_power);
         WattCharacteristic.setValue(buffer);
+
+        WhrTodayCharacteristic.setValue(update_Whr_Today_JSON());
 
         //state = STANDBY_STATE;
         TRANSMIT_SENSOR = false;

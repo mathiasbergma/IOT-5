@@ -26,7 +26,7 @@ void BLEOnConnectcallback(const BlePeerDevice &peer, void *context);
 void transmit_prices(int start_stop[12][2], int size);
 void check_time(void);
 #line 16 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
-#define RISING SENSOR
+#define RISING_SENSOR
 
 #define KW_SENSOR_PIN D8
 #define WATT_CONVERSION_CONSTANT 3600000
@@ -145,12 +145,8 @@ void loop()
         // Fill price arrays with data from webhook
         Serial.printf("Getting price data for yesterday\n");
         //get_data(Time.day() - 1);
-<<<<<<< HEAD
-        //delay(5000);
-=======
         //delay(10000);
          int count=0;
->>>>>>> 670a2f4dad8f0647fc9090b810e6ecc72a272292
         get_data(Time.day() - 1);
         while (!CALCULATE)
         {
@@ -208,11 +204,7 @@ void loop()
     if (CALCULATE)
     {
         update_JSON();
-<<<<<<< HEAD
-        cnt = calc_low(start_stop, cost_today, range);
-=======
         cnt = calc_low(start_stop, cost_today, MAX_RANGE);
->>>>>>> 670a2f4dad8f0647fc9090b810e6ecc72a272292
         Serial.printf("Current HH:MM: %02d:%02d\n", Time.hour(), Time.minute());
         TRANSMIT_PRICE = true;
         CALCULATE = false;
@@ -238,6 +230,8 @@ void loop()
         char buffer[255];
         sprintf(buffer, "{\"watt\":%d}", calc_power);
         WattCharacteristic.setValue(buffer);
+
+        WhrTodayCharacteristic.setValue(update_Whr_Today_JSON());
 
         //state = STANDBY_STATE;
         TRANSMIT_SENSOR = false;
