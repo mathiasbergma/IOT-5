@@ -10,7 +10,7 @@
 #include <fcntl.h>
 
 //#define STATEDEBUG
-//#define USEMQTT
+#define USEMQTT
 
 // use rising sensor
 #define RISING SENSOR
@@ -94,6 +94,7 @@ void setup()
     // Resolve MQTT broker IP address
     IPAddress IP = resolver.search("homeassistant.local");
     client.setBroker(IP.toString(), PORT);
+    
 #endif
 
     // Subscribe to the integration response event
@@ -233,7 +234,14 @@ void loop()
     {
 #ifdef USEMQTT
         char buffer[16];
-        sprintf(buffer, "%d", wh_today[Time.hour() - 1]);
+        if (Time.hour() == 0)
+        {
+            sprintf(buffer, "%d", wh_yesterday[23]);
+        }
+        else
+        {
+            sprintf(buffer, "%d", wh_today[Time.hour() - 1]);
+        }
         client.publish("watthour", buffer);
 #endif
         hourly_JSON_update();
@@ -266,7 +274,7 @@ void loop()
  */
 void init_memory()
 {
-    Serial.printf("before %lu\n", System.freeMemory());
+    //Serial.printf("before %lu\n", System.freeMemory());
     // Allocate for the prices
     cost_yesterday = (double *)malloc(MAX_RANGE * sizeof(double));
     if (cost_yesterday == NULL)

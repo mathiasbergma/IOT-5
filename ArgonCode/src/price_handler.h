@@ -63,7 +63,10 @@ void myHandler(const char *event, const char *data)
         {
             // Save hour and cost in differen containers
             //sscanf(token, "%*d-%*d-%*dT%d:%*d:%*d", i);
-            //token = strtok(NULL, ",!");
+            if (token == NULL)
+            {
+                break;
+            }
             if (i >= 0 && i < 7)
             {
                  cost_tomorrow[i] = (atof(token) / 1000.0)+transport.low;
@@ -76,7 +79,7 @@ void myHandler(const char *event, const char *data)
             {
                 cost_tomorrow[i] = (atof(token) / 1000.0)+transport.medium;
             }
-
+            token = strtok(NULL, ",!");
         }
         CALCULATE = true;
     }

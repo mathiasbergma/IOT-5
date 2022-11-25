@@ -41,13 +41,13 @@ int calc_low(int low_price_intervals[12][2], double * cost, int size)
     small_offset = last_small + delta * DELTA_OFFSET;
     
     // Find hours of day at which price is within the defined low price point
-    for (int i = 0; i <= size; i++)
+    for (int i = 0; i < size; i++)
     {
         
         if (cost[i] < small_offset)
         {
             low_range_hour[idx] = i;
-            
+            Serial.printf("low_range_hour[%d]: %d\n",idx, low_range_hour[idx]);
             idx++;
         }
     }

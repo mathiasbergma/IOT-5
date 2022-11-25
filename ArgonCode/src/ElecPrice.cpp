@@ -2,7 +2,7 @@
 //       THIS IS A GENERATED FILE - DO NOT EDIT       //
 /******************************************************/
 
-#line 1 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
+#line 1 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
 #include "../lib/MQTT/src/MQTT.h"
 #include "BLE_include.h"
 #include "application.h"
@@ -15,9 +15,6 @@
 #include <fcntl.h>
 
 //#define STATEDEBUG
-//#define USEMQTT
-
-// use rising sensor
 void setup();
 void loop();
 void init_memory();
@@ -25,7 +22,10 @@ void rotate_prices();
 void BLEOnConnectcallback(const BlePeerDevice &peer, void *context);
 void transmit_prices(int start_stop[12][2], int size);
 void check_time(void);
-#line 16 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
+#line 13 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
+#define USEMQTT
+
+// use rising sensor
 #define RISING SENSOR
 
 #define KW_SENSOR_PIN D8
@@ -107,6 +107,7 @@ void setup()
     // Resolve MQTT broker IP address
     IPAddress IP = resolver.search("homeassistant.local");
     client.setBroker(IP.toString(), PORT);
+    
 #endif
 
     // Subscribe to the integration response event
@@ -145,12 +146,8 @@ void loop()
         // Fill price arrays with data from webhook
         Serial.printf("Getting price data for yesterday\n");
         //get_data(Time.day() - 1);
-<<<<<<< HEAD
-        //delay(5000);
-=======
         //delay(10000);
          int count=0;
->>>>>>> 670a2f4dad8f0647fc9090b810e6ecc72a272292
         get_data(Time.day() - 1);
         while (!CALCULATE)
         {
@@ -208,11 +205,7 @@ void loop()
     if (CALCULATE)
     {
         update_JSON();
-<<<<<<< HEAD
-        cnt = calc_low(start_stop, cost_today, range);
-=======
         cnt = calc_low(start_stop, cost_today, MAX_RANGE);
->>>>>>> 670a2f4dad8f0647fc9090b810e6ecc72a272292
         Serial.printf("Current HH:MM: %02d:%02d\n", Time.hour(), Time.minute());
         TRANSMIT_PRICE = true;
         CALCULATE = false;
@@ -254,7 +247,14 @@ void loop()
     {
 #ifdef USEMQTT
         char buffer[16];
-        sprintf(buffer, "%d", wh_today[Time.hour() - 1]);
+        if (Time.hour() == 0)
+        {
+            sprintf(buffer, "%d", wh_yesterday[23]);
+        }
+        else
+        {
+            sprintf(buffer, "%d", wh_today[Time.hour() - 1]);
+        }
         client.publish("watthour", buffer);
 #endif
         hourly_JSON_update();
@@ -287,7 +287,7 @@ void loop()
  */
 void init_memory()
 {
-    Serial.printf("before %lu\n", System.freeMemory());
+    //Serial.printf("before %lu\n", System.freeMemory());
     // Allocate for the prices
     cost_yesterday = (double *)malloc(MAX_RANGE * sizeof(double));
     if (cost_yesterday == NULL)
