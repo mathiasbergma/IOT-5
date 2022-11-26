@@ -2,7 +2,7 @@
 //       THIS IS A GENERATED FILE - DO NOT EDIT       //
 /******************************************************/
 
-#line 1 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
+#line 1 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
 #include "../lib/MQTT/src/MQTT.h"
 #include "BLE_include.h"
 #include "application.h"
@@ -15,6 +15,10 @@
 #include <fcntl.h>
 
 //#define STATEDEBUG
+
+//#define USEMQTT
+
+// use rising sensor
 void setup();
 void loop();
 void init_memory();
@@ -22,11 +26,8 @@ void rotate_prices();
 void BLEOnConnectcallback(const BlePeerDevice &peer, void *context);
 void transmit_prices(int start_stop[12][2], int size);
 void check_time(void);
-#line 13 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
-#define USEMQTT
-
-// use rising sensor
-#define RISING SENSOR
+#line 17 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
+#define RISING_SENSOR
 
 #define KW_SENSOR_PIN D8
 #define WATT_CONVERSION_CONSTANT 3600000
@@ -86,7 +87,6 @@ void setup()
     STARTUP = true;
 
     waitUntil(Particle.connected);
-
     // setup BLE
     ble_setup();
 
@@ -96,24 +96,15 @@ void setup()
     Time.zone(1);
     // Time.beginDST();
 
-#ifdef RISING_SENSOR    
-    pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);           // Setup pinmode for LDR pin
-    attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING); // Attach interrup that will be called when rising
-#else
-    pinMode(KW_SENSOR_PIN, INPUT_PULLUP);           // Setup pinmode for LDR pin
-    attachInterrupt(KW_SENSOR_PIN, handle_sensor, FALLING);
-#endif
-
 #ifdef USEMQTT
     // Resolve MQTT broker IP address
     IPAddress IP = resolver.search("homeassistant.local");
     client.setBroker(IP.toString(), PORT);
-    
+
 #endif
 
     // Subscribe to the integration response event
     Particle.subscribe("prices", myHandler, MY_DEVICES);
-    
 
 #ifdef USEMQTT
     // connect to the mqtt broker(unique id by Time.now())
@@ -134,60 +125,63 @@ void setup()
     // Print current time
     Serial.printf("Current HH:MM: %02d:%02d\n", Time.hour(), Time.minute());
     timer.start();
+
+    Serial.printlnf("RSSI=%d", (int8_t)WiFi.RSSI());
+    // Fill price arrays with data from webhook
+    Serial.printf("Getting price data for yesterday\n");
+    // get_data(Time.day() - 1);
+    // delay(10000);
+    int count = 0;
+    get_data(Time.day() - 1);
+    while (!CALCULATE)
+    {
+        delay(1000);
+        Serial.printf("Count1=: %d\n", count);
+        count++;
+    }
+    CALCULATE = false;
+    /* Prices have been fetched. New prices are stored in array for tomorrow.
+     *  We therefore need to rotate the arrays to get the correct prices for today.
+     */
+    delay(5000);
+    count = 0;
+    rotate_prices();
+
+    Serial.printf("Getting price data for today\n");
+    get_data(Time.day());
+    while (!CALCULATE)
+    {
+        delay(1000);
+        Serial.printf("Count2=: %d\n", count);
+        count++;
+    }
+    rotate_prices();
+    delay(5000);
+
+    if (Time.hour() >= PULL_TIME_1)
+    {
+        CALCULATE = false;
+        GET_DATA = true;
+    }
+    else
+    {
+        Serial.printf("The prices for tomorrov will be pulled at %d:00\n", PULL_TIME_1);
+        CALCULATE = true;
+    }
+
+    #ifdef RISING_SENSOR
+        pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                // Setup pinmode for LDR pin
+        attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING); // Attach interrup that will be called when rising
+    #else
+        pinMode(KW_SENSOR_PIN, INPUT_PULLUP); // Setup pinmode for LDR pin
+        attachInterrupt(KW_SENSOR_PIN, handle_sensor, FALLING);
+    #endif
 }
 
 void loop()
 {
     static int start_stop[12][2] = {0};
     static int cnt = 0;
-
-    if (STARTUP)
-    {
-        Serial.printlnf("RSSI=%d", (int8_t) WiFi.RSSI());
-        // Fill price arrays with data from webhook
-        Serial.printf("Getting price data for yesterday\n");
-        //get_data(Time.day() - 1);
-        //delay(10000);
-         int count=0;
-        get_data(Time.day() - 1);
-        while (!CALCULATE)
-        {
-            delay(1000);
-            Serial.printf("Count1=: %d\n", count);
-            count++;
-        }
-        CALCULATE = false;
-        /* Prices have been fetched. New prices are stored in array for tomorrow.
-        *  We therefore need to rotate the arrays to get the correct prices for today.
-        */
-       delay(5000);
-       count=0;
-        rotate_prices();
-        
-        Serial.printf("Getting price data for today\n");
-        get_data(Time.day());
-        while (!CALCULATE)
-        {
-            delay(1000);
-            Serial.printf("Count2=: %d\n", count);
-            count++;
-
-        }
-        rotate_prices();
-        delay(5000);
-
-        if (Time.hour() >= PULL_TIME_1)
-        {
-            CALCULATE = false;
-            GET_DATA = true;
-        }
-        else
-        {
-            Serial.printf("The prices for tomorrov will be pulled at %d:00\n", PULL_TIME_1);
-            CALCULATE = true;
-        }
-        STARTUP = false;
-    }
 
 #ifdef USEMQTT
     check_mqtt();
@@ -233,9 +227,9 @@ void loop()
         sprintf(buffer, "{\"watt\":%d}", calc_power);
         WattCharacteristic.setValue(buffer);
 
-        WhrTodayCharacteristic.setValue(update_Whr_Today_JSON());
+        //WhrTodayCharacteristic.setValue(update_Whr_Today_JSON());
 
-        //state = STANDBY_STATE;
+        // state = STANDBY_STATE;
         TRANSMIT_SENSOR = false;
     }
 
@@ -264,7 +258,7 @@ void loop()
         UPDATE_WH_TODAY = false;
     }
 
-    if (NewBLEConnection & ((millis() - last_connect) > 1400))
+    if (NewBLEConnection & ((millis() - last_connect) > 3000))
     {
         // send everything relavant on new connect
         // needs a bit og delay to ensure device is ready
@@ -278,6 +272,7 @@ void loop()
         WhrYesterdayCharacteristic.setValue(wh_yesterday_Json);  // string Whr
         WhrTodayCharacteristic.setValue(wh_today_Json);          // Whr used in the corresponding hour
 
+        DkkTodayCharacteristic.setValue("{\"pricestoday\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}");
         NewBLEConnection = false;
         Serial.printf("ble_connected\n");
     }
@@ -290,8 +285,8 @@ void loop()
  */
 void init_memory()
 {
-    //Serial.printf("before %lu\n", System.freeMemory());
-    // Allocate for the prices
+    // Serial.printf("before %lu\n", System.freeMemory());
+    //  Allocate for the prices
     cost_yesterday = (double *)malloc(MAX_RANGE * sizeof(double));
     if (cost_yesterday == NULL)
     {
@@ -394,7 +389,7 @@ void handle_sensor(void)
 
 void callback(char *topic, byte *payload, unsigned int length)
 {
-    GET_DATA = true;    
+    GET_DATA = true;
 }
 
 /** @brief Reconnects MQTT client if disconnected
@@ -461,7 +456,6 @@ void check_time(void)
     {
         oneShotGuard = currentDay;
         GET_DATA = true;
-
     }
     if ((currentHour == PULL_TIME_2) && currentDay != oneShotGuard2)
     {

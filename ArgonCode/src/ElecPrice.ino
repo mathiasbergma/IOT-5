@@ -10,7 +10,8 @@
 #include <fcntl.h>
 
 //#define STATEDEBUG
-#define USEMQTT
+
+//#define USEMQTT
 
 // use rising sensor
 #define RISING_SENSOR
@@ -73,7 +74,6 @@ void setup()
     STARTUP = true;
 
     waitUntil(Particle.connected);
-
     // setup BLE
     ble_setup();
 
@@ -156,13 +156,13 @@ void setup()
         CALCULATE = true;
     }
 
-#ifdef RISING_SENSOR
-    pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                // Setup pinmode for LDR pin
-    attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING); // Attach interrup that will be called when rising
-#else
-    pinMode(KW_SENSOR_PIN, INPUT_PULLUP); // Setup pinmode for LDR pin
-    attachInterrupt(KW_SENSOR_PIN, handle_sensor, FALLING);
-#endif
+    #ifdef RISING_SENSOR
+        pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                // Setup pinmode for LDR pin
+        attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING); // Attach interrup that will be called when rising
+    #else
+        pinMode(KW_SENSOR_PIN, INPUT_PULLUP); // Setup pinmode for LDR pin
+        attachInterrupt(KW_SENSOR_PIN, handle_sensor, FALLING);
+    #endif
 }
 
 void loop()
@@ -214,7 +214,7 @@ void loop()
         sprintf(buffer, "{\"watt\":%d}", calc_power);
         WattCharacteristic.setValue(buffer);
 
-        WhrTodayCharacteristic.setValue(update_Whr_Today_JSON());
+        //WhrTodayCharacteristic.setValue(update_Whr_Today_JSON());
 
         // state = STANDBY_STATE;
         TRANSMIT_SENSOR = false;
@@ -245,7 +245,7 @@ void loop()
         UPDATE_WH_TODAY = false;
     }
 
-    if (NewBLEConnection & ((millis() - last_connect) > 1400))
+    if (NewBLEConnection & ((millis() - last_connect) > 3000))
     {
         // send everything relavant on new connect
         // needs a bit og delay to ensure device is ready
@@ -259,6 +259,7 @@ void loop()
         WhrYesterdayCharacteristic.setValue(wh_yesterday_Json);  // string Whr
         WhrTodayCharacteristic.setValue(wh_today_Json);          // Whr used in the corresponding hour
 
+        DkkTodayCharacteristic.setValue("{\"pricestoday\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}");
         NewBLEConnection = false;
         Serial.printf("ble_connected\n");
     }
