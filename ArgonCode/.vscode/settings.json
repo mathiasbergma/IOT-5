@@ -6,6 +6,6 @@
     },
 
     "particle.targetDevice": "banjo_chicken",
-    "particle.firmwareVersion": "4.0.1",
+    "particle.firmwareVersion": "5.1.0",
     "particle.targetPlatform": "argon"
 }

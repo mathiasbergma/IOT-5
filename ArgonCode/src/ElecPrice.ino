@@ -118,33 +118,13 @@ void setup()
 
     Serial.printlnf("RSSI=%d", (int8_t)WiFi.RSSI());
 
-    // Fill price arrays with data from webhook
+    // Fill price arrays with data from http get
     Serial.printf("Getting price data for yesterday\n");
-    // get_data(Time.day() - 1);
-    // delay(10000);
-    int count = 0;
     get_data_http(Time.day() - 1);
-    while (!CALCULATE)
-    {
-        delay(2000);
-        Serial.printf("Count1=: %d\n", count);
-        count++;
-    }
-    CALCULATE = false;
-    /* Prices have been fetched. New prices are stored in array for tomorrow.
-     *  We therefore need to rotate the arrays to get the correct prices for today.
-     */
-    count = 0;
     rotate_prices();
 
     Serial.printf("Getting price data for today\n");
     get_data_http(Time.day());
-    while (!CALCULATE)
-    {
-        delay(1000);
-        Serial.printf("Count2=: %d\n", count);
-        count++;
-    }
     rotate_prices();
 
     if (Time.hour() >= PULL_TIME_1)
@@ -216,7 +196,7 @@ void loop()
         sprintf(buffer, "{\"watt\":%d}", calc_power);
         WattCharacteristic.setValue(buffer);
 
-        // WhrTodayCharacteristic.setValue(update_Whr_Today_JSON());
+        WhrTodayCharacteristic.setValue(update_Whr_Today_JSON());
 
         // state = STANDBY_STATE;
         TRANSMIT_SENSOR = false;
