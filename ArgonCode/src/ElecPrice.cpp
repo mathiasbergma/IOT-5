@@ -13,7 +13,9 @@
 #include "string.h"
 #include "update_json.h"
 #include <fcntl.h>
-
+#include "../lib/Json/src/Arduino_JSON.h"
+#include "prices.h" //experimental price getting
+#include "ppp.h"
 //#define STATEDEBUG
 
 //#define USEMQTT
@@ -26,7 +28,7 @@ void rotate_prices();
 void BLEOnConnectcallback(const BlePeerDevice &peer, void *context);
 void transmit_prices(int start_stop[12][2], int size);
 void check_time(void);
-#line 17 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
+#line 19 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
 #define RISING_SENSOR
 
 #define KW_SENSOR_PIN D8
@@ -77,8 +79,8 @@ void callback(char *topic, byte *payload, unsigned int length);
 MQTT client("192.168.110.6", PORT, 512, 30, callback);
 #endif
 
-UDP udp;
-mDNSResolver::Resolver resolver(udp);
+// UDP udp;
+// mDNSResolver::Resolver resolver(udp);
 
 SYSTEM_THREAD(ENABLED);
 
@@ -87,6 +89,8 @@ void setup()
     STARTUP = true;
 
     waitUntil(Particle.connected);
+    Particle.unsubscribe();
+
     // setup BLE
     ble_setup();
 
@@ -104,7 +108,8 @@ void setup()
 #endif
 
     // Subscribe to the integration response event
-    Particle.subscribe("prices", myHandler, MY_DEVICES);
+    Particle.subscribe("prices", myHandler);
+    delay(10000);
 
 #ifdef USEMQTT
     // connect to the mqtt broker(unique id by Time.now())
@@ -127,6 +132,14 @@ void setup()
     timer.start();
 
     Serial.printlnf("RSSI=%d", (int8_t)WiFi.RSSI());
+
+
+    Serial.printf("trying the HTTP GET\n");
+    Httprequest_today();
+
+    Serial.println("trying the other method");
+    htttttp();
+
     // Fill price arrays with data from webhook
     Serial.printf("Getting price data for yesterday\n");
     // get_data(Time.day() - 1);
@@ -135,7 +148,7 @@ void setup()
     get_data(Time.day() - 1);
     while (!CALCULATE)
     {
-        delay(1000);
+        delay(2000);
         Serial.printf("Count1=: %d\n", count);
         count++;
     }
@@ -169,13 +182,13 @@ void setup()
         CALCULATE = true;
     }
 
-    #ifdef RISING_SENSOR
-        pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                // Setup pinmode for LDR pin
-        attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING); // Attach interrup that will be called when rising
-    #else
-        pinMode(KW_SENSOR_PIN, INPUT_PULLUP); // Setup pinmode for LDR pin
-        attachInterrupt(KW_SENSOR_PIN, handle_sensor, FALLING);
-    #endif
+#ifdef RISING_SENSOR
+    pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                // Setup pinmode for LDR pin
+    attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING); // Attach interrup that will be called when rising
+#else
+    pinMode(KW_SENSOR_PIN, INPUT_PULLUP); // Setup pinmode for LDR pin
+    attachInterrupt(KW_SENSOR_PIN, handle_sensor, FALLING);
+#endif
 }
 
 void loop()
@@ -227,7 +240,7 @@ void loop()
         sprintf(buffer, "{\"watt\":%d}", calc_power);
         WattCharacteristic.setValue(buffer);
 
-        //WhrTodayCharacteristic.setValue(update_Whr_Today_JSON());
+        // WhrTodayCharacteristic.setValue(update_Whr_Today_JSON());
 
         // state = STANDBY_STATE;
         TRANSMIT_SENSOR = false;

@@ -1,7 +1,18 @@
 #include "Particle.h"
-#include "state_variables.h"
+//#include "state_variables.h"
 
 #define MAX_RANGE 24
+
+extern bool SENSOR_READ;
+extern bool GET_DATA;
+extern volatile bool CALCULATE;
+extern bool TRANSMIT_PRICE;
+extern bool TRANSMIT_SENSOR;
+extern bool STANDBY_STATE;
+extern bool AWAITING_DATA;
+extern bool STARTUP;
+extern bool ROTATE;
+extern bool UPDATE_WH_TODAY;
 
 char temp[2 * 513];    // Create an array that can hold the entire transmission
 double * cost_yesterday;
@@ -44,6 +55,7 @@ void myHandler(const char *event, const char *data)
     //Serial.printf("event_str: %s\n", event_str);
     // Token used for strtok()
     char *token = NULL;
+    Serial.println("in the callback");
     // Extract the numbered part of eventname and use it for indexing "temp"
     strcat(&temp[atoi(strtok(event_str, "prices/")) * 512], data);
     // If transmission size is less than 512 = last transmission received
