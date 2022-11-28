@@ -17,7 +17,7 @@ bool Httprequest_today(void)
     client.println("Content-Length: 0");
     client.println("Content-Type: application/json");
     client.println();
-    // IPAddress equals whatever www.google.com resolves to
+    // 
   }
   delay(2000);
   bool print_next = false;
@@ -48,57 +48,3 @@ bool Httprequest_today(void)
 
   return true;
 }
-
-/*
-JSONVar Price_arr;
-  if ((WiFi.status() == WL_CONNECTED))
-  { // Check the current connection status
-
-    if (httpCode > 0)
-    { // Check for the returning code
-
-      String payload = http.getString();
-      JSONVar myObject = JSON.parse(payload);
-      if (JSON.typeof(myObject) == "undefined")
-      {
-        Serial.println("Parsing input failed!");
-      }
-      if (myObject.hasOwnProperty("records"))
-      {
-        JSONVar myArray = myObject["records"];
-        Serial.println(myArray[0]);
-
-        for (int i = 0; i < 24; i++)
-        {
-          JSONVar myHour = myArray[i];
-
-          if (JSON.typeof(myHour["SpotPriceDKK"]) == "undefined")
-          {
-            Serial.println("parsing failed 2");
-          }
-          else
-          {
-            Serial.println((double)myHour["SpotPriceDKK"]);
-            pricetoday[i] = (double)myHour["SpotPriceDKK"];
-            Price_arr[i] = (double)myHour["SpotPriceDKK"];
-          }
-        }
-      }
-      // Serial.println(httpCode);
-      // Serial.println(payload);
-      http.end();
-      // writeFile(SPIFFS, "/price"+timeClient.getDay(), Price_arr);
-      return true;
-    }
-
-    else
-    {
-      Serial.println("Error on HTTP request");
-
-      http.end();
-      return false;
-    }
-  }
-  // Serial.println(timeClient.getFormattedUTCDateTime());
-  return false;
-  */
