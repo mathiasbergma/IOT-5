@@ -95,7 +95,6 @@ void setup()
 
     // Subscribe to the integration response event
     Particle.subscribe("prices", myHandler);
-    delay(10000);
 
 #ifdef USEMQTT
     // connect to the mqtt broker(unique id by Time.now())
@@ -135,7 +134,6 @@ void setup()
     /* Prices have been fetched. New prices are stored in array for tomorrow.
      *  We therefore need to rotate the arrays to get the correct prices for today.
      */
-    delay(5000);
     count = 0;
     rotate_prices();
 
@@ -148,7 +146,6 @@ void setup()
         count++;
     }
     rotate_prices();
-    delay(5000);
 
     if (Time.hour() >= PULL_TIME_1)
     {
