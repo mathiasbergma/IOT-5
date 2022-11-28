@@ -99,6 +99,9 @@ void setup()
     Time.zone(1);
     // Time.beginDST();
 
+    //Set current hour before entering loop
+    currentHour = Time.hour();
+
 #ifdef USEMQTT
     // Resolve MQTT broker IP address
     IPAddress IP = resolver.search("homeassistant.local");
