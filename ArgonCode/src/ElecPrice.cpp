@@ -14,8 +14,7 @@
 #include "update_json.h"
 #include <fcntl.h>
 #include "../lib/Json/src/Arduino_JSON.h"
-#include "prices.h" //experimental price getting
-#include "ppp.h"
+#include "price_http_get.h"
 //#define STATEDEBUG
 
 //#define USEMQTT
@@ -28,7 +27,7 @@ void rotate_prices();
 void BLEOnConnectcallback(const BlePeerDevice &peer, void *context);
 void transmit_prices(int start_stop[12][2], int size);
 void check_time(void);
-#line 19 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
+#line 18 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
 #define RISING_SENSOR
 
 #define KW_SENSOR_PIN D8
@@ -133,19 +132,12 @@ void setup()
 
     Serial.printlnf("RSSI=%d", (int8_t)WiFi.RSSI());
 
-
-    Serial.printf("trying the HTTP GET\n");
-    Httprequest_today();
-
-    Serial.println("trying the other method");
-    htttttp();
-
     // Fill price arrays with data from webhook
     Serial.printf("Getting price data for yesterday\n");
     // get_data(Time.day() - 1);
     // delay(10000);
     int count = 0;
-    get_data(Time.day() - 1);
+    get_data_http(Time.day() - 1);
     while (!CALCULATE)
     {
         delay(2000);
@@ -161,7 +153,7 @@ void setup()
     rotate_prices();
 
     Serial.printf("Getting price data for today\n");
-    get_data(Time.day());
+    get_data_http(Time.day());
     while (!CALCULATE)
     {
         delay(1000);
@@ -205,7 +197,7 @@ void loop()
     {
         AWAITING_DATA = true;
 
-        get_data(Time.day() + 1);
+        get_data_http(Time.day() + 1);
         GET_DATA = false;
     }
 
@@ -285,7 +277,6 @@ void loop()
         WhrYesterdayCharacteristic.setValue(wh_yesterday_Json);  // string Whr
         WhrTodayCharacteristic.setValue(wh_today_Json);          // Whr used in the corresponding hour
 
-        DkkTodayCharacteristic.setValue("{\"pricestoday\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}");
         NewBLEConnection = false;
         Serial.printf("ble_connected\n");
     }

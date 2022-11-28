@@ -1,4 +1,6 @@
 
+// This is not used in the project -- Mike Hynes
+
 #include "../lib/Json/src/Arduino_JSON.h"
 
 #include "application.h"

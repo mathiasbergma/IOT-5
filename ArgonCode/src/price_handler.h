@@ -1,30 +1,8 @@
 #include "Particle.h"
-//#include "state_variables.h"
+#include "state_variables.h"
 
 #define MAX_RANGE 24
 
-extern bool SENSOR_READ;
-extern bool GET_DATA;
-extern volatile bool CALCULATE;
-extern bool TRANSMIT_PRICE;
-extern bool TRANSMIT_SENSOR;
-extern bool STANDBY_STATE;
-extern bool AWAITING_DATA;
-extern bool STARTUP;
-extern bool ROTATE;
-extern bool UPDATE_WH_TODAY;
-
-char temp[2 * 513];    // Create an array that can hold the entire transmission
-double * cost_yesterday;
-double * cost_today;
-double * cost_tomorrow;
-
-const struct transport_t
-{
-    double high = 1.9135;
-    double medium = 0.6379;
-    double low = 0.2127;
-}transport;
 
 /** @brief Puplishes a formatted command string to Particle cloud that fires off a webhook
  *  @param day
