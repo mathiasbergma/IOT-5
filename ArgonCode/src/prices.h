@@ -17,27 +17,53 @@ bool Httprequest_today(void)
     client.println("Content-Length: 0");
     client.println("Content-Type: application/json");
     client.println();
-    // 
+    //
   }
   delay(2000);
-  bool print_next = false;
+  bool Json_start = false;
+  char buffer[2084];
+  int pos = 0;
   while (client.connected())
   {
-    uint32_t bytesAvail = client.available();
-    uint32_t ptr = 0;
-    uint8_t buffer[500];
-    client.read(buffer, bytesAvail);
-    char message[bytesAvail+1]= "\0";
-
-    for (int i=0;i<bytesAvail;i++){
-      message[i] = (char)buffer[i];
+    if (client.available())
+    {
+      char c = client.read();
+      if (!Json_start && (c == '{'))
+      {
+        Json_start = true;
+        buffer[pos] = c;
+        pos++;
+      }
+      else if (Json_start)
+      {
+        buffer[pos] = c;
+        pos++;
+      }
+      
     }
-    
-      Serial.print(message);
+    buffer[pos] = '\0'; // Null-terminate buffer
 
+    //Serial.println(buffer);
   }
+  Serial.println(buffer);
+  /*
+    while (client.connected())
+    {
+      uint32_t bytesAvail = client.available();
+      uint32_t ptr = 0;
+      uint8_t buffer[500];
+      client.read(buffer, bytesAvail);
+      char message[bytesAvail+1]= "\0";
+
+      for (int i=0;i<bytesAvail;i++){
+        message[i] = (char)buffer[i];
+      }
+
+        Serial.print(message);
+
+    }
+    */
   // if temp is char string, term it here temp[ptr] = '\0';
-  
 
   if (!client.connected())
   {
