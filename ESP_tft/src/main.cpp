@@ -138,16 +138,30 @@ void loop()
   if (ScreenUpdate)
   {
     ScreenUpdate = false;
+
+
+    double DKK_calc[24];
+    double Dkktotalsum = 0.0;
+    for (int i = 0; i < 24; i++)
+    {
+      double dkk= (Whr_pointer[i] / 1000.0) * Price_pointer[i];
+      DKK_calc[i] = dkk;
+      Dkktotalsum += dkk/1000.0;
+    }
+
+    char pricebuf[35];
+    sprintf(pricebuf, "   %1.2f", Dkktotalsum);
+    //tft.drawString(pricebuf, radius*4, 5, 6);
+    tft.drawRightString(pricebuf,radius*6, 5,6);
+    tft.drawString("kr.",radius*6,5,4);
+    tft.drawString("cost:", radius*2+10, 5, 4);
+
     // graph on top
     int originX = 5;
     int originY = 210;
     int sizeY = 40;
     int sizeX = 400;
-    double DKK_calc[24];
-    for (int i = 0; i < 24; i++)
-    {
-      DKK_calc[i] = Whr_pointer[i] * Price_pointer[i];
-    }
+
     graph(originX, originY, &DKK_calc[0], sizeX, sizeY, "DKK");
 
     // graph in middle
@@ -187,7 +201,7 @@ void graph(int originX, int originY, double values[24], int sizeX, int sizeY, ch
   int posBlock[24];
   int ddd[24];
   int graphRange = 0; // Maxvalue;
-  int minvalue = 99999;
+  int minvalue = 99999999;
   int maxpos = 0;
   int minpos = 0;
   /*
@@ -202,7 +216,7 @@ void graph(int originX, int originY, double values[24], int sizeX, int sizeY, ch
       graphRange = values[i];
       maxpos = i;
     }
-    if (values[i] < minvalue)
+    if (values[i] < minvalue && values[i] != 0)
     {
       minvalue = values[i];
       minpos = i;
@@ -264,12 +278,16 @@ void graph(int originX, int originY, double values[24], int sizeX, int sizeY, ch
     tft.drawCentreString(buf, originX + (boxSize / 2) + boxSize * i, originY, 1);
   }
 
-  tft.fillRect(originX + sizeX, originY - sizeY, 50, sizeY, TFT_BLACK);
+  //tft.fillRect(originX + sizeX, originY - sizeY, 75, sizeY + 5, TFT_BLACK);
   char buf[20];
-  sprintf(buf, "MAX: %d", graphRange);
+  sprintf(buf, "MAX: %1.2f   ", graphRange / 1000.0);
   tft.drawString(buf, originX + sizeX - boxSize, originY - sizeY, 2);
   char buf2[20];
-  sprintf(buf2, "MIN: %d", minvalue);
+  if (minvalue > graphRange)
+  {
+    minvalue = 0;
+  }
+  sprintf(buf2, "MIN: %1.2f   ", minvalue / 1000.0);
   tft.drawString(buf2, originX + sizeX - boxSize, originY - 10, 2);
 
   tft.drawString(units, originX + sizeX - boxSize, originY - (sizeY / 2) - 5, 2);
