@@ -1,15 +1,16 @@
+#include "../lib/Json/src/Arduino_JSON.h"
 #include "../lib/MQTT/src/MQTT.h"
 #include "BLE_include.h"
+#include "Storage.h"
 #include "application.h"
 #include "cost_calc.h"
 #include "mDNSResolver.h"
 #include "price_handler.h"
+#include "price_http_get.h"
 #include "state_variables.h"
 #include "string.h"
 #include "update_json.h"
 #include <fcntl.h>
-#include "../lib/Json/src/Arduino_JSON.h"
-#include "price_http_get.h"
 //#define STATEDEBUG
 
 //#define USEMQTT
@@ -86,8 +87,11 @@ void setup()
     Time.zone(1);
     // Time.beginDST();
 
-    //Set current hour before entering loop
+    // Set current hour before entering loop
     currentHour = Time.hour();
+
+    // Set up persistant storage
+    initStorage(&wh_today_Json, &wh_yesterday_Json);
 
 #ifdef USEMQTT
     // Resolve MQTT broker IP address

@@ -1,9 +1,12 @@
+#pragma once
 
-extern double * cost_yesterday;
-extern double * cost_today;
-extern double * cost_tomorrow;
-extern int * wh_yesterday;
-extern int * wh_today;
+#include "Storage.h"
+
+extern double *cost_yesterday;
+extern double *cost_today;
+extern double *cost_tomorrow;
+extern int *wh_yesterday;
+extern int *wh_today;
 extern String wh_today_Json;
 extern String wh_yesterday_Json;
 extern String pricestoday_Json;
@@ -12,7 +15,7 @@ extern String pricestomorrow_Json;
 
 void hourly_JSON_update()
 {
-    //Update wh_today_Json
+    // Update wh_today_Json
     wh_today_Json = "{\"Whr_today\":[";
     for (int i = 0; i < 24; i++)
     {
@@ -23,6 +26,10 @@ void hourly_JSON_update()
         }
     }
     wh_today_Json += "]}";
+
+    // Write to storage
+    if (!writeWhToday(wh_today_Json))
+        Serial.println("Writing wh_today_Json failed.");
 }
 void update_JSON()
 {
@@ -50,7 +57,7 @@ void update_JSON()
     }
     pricestoday_Json += String::format("]}");
 
-     // Updating prices today JSON string
+    // Updating prices today JSON string
     pricestomorrow_Json = String::format("{\"pricestomorrow\":[");
     for (int i = 0; i < 24; i++)
     {
@@ -86,6 +93,9 @@ void update_JSON()
     }
     wh_today_Json += String::format("]}");
 
+    // Write to storage
+    if (!writeWhToday(wh_today_Json) || writeWhYesterday(wh_yesterday_Json))
+        Serial.println("Writing watt hours failed.");
 }
 String update_Whr_Today_JSON()
 {
@@ -100,6 +110,10 @@ String update_Whr_Today_JSON()
         }
     }
     wh_today_Json += String::format("]}");
+
+    // Write to storage
+    if (!writeWhToday(wh_today_Json))
+        Serial.println("Writing wh_today_Json failed.");
 
     return wh_today_Json;
 }
