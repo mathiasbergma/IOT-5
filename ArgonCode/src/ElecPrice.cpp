@@ -15,6 +15,9 @@
 #include <fcntl.h>
 #include "../lib/Json/src/Arduino_JSON.h"
 #include "price_http_get.h"
+#include "Storage.h"
+
+
 //#define STATEDEBUG
 
 //#define USEMQTT
@@ -27,7 +30,7 @@ void rotate_prices();
 void BLEOnConnectcallback(const BlePeerDevice &peer, void *context);
 void transmit_prices(int start_stop[12][2], int size);
 void check_time(void);
-#line 18 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
+#line 21 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
 #define RISING_SENSOR
 
 #define KW_SENSOR_PIN D8
@@ -99,8 +102,11 @@ void setup()
     Time.zone(1);
     // Time.beginDST();
 
-    //Set current hour before entering loop
+    // Set current hour before entering loop
     currentHour = Time.hour();
+
+    // Set up persistant storage
+    initStorage(&wh_today_Json, &wh_yesterday_Json);
 
 #ifdef USEMQTT
     // Resolve MQTT broker IP address
