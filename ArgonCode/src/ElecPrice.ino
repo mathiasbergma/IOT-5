@@ -1,17 +1,19 @@
-#include "../lib/Json/src/Arduino_JSON.h"
 #include "BLE_include.h"
-#include "Storage.h"
 #include "application.h"
 #include "cost_calc.h"
 #include "price_handler.h"
-#include "price_http_get.h"
 #include "state_variables.h"
 #include "string.h"
 #include "update_json.h"
 #include <fcntl.h>
+#include "../lib/Json/src/Arduino_JSON.h"
+#include "price_http_get.h"
+#include "Storage.h"
+
+
 //#define STATEDEBUG
 
-//#define USEMQTT
+#define USEMQTT
 
 #ifdef USEMQTT
 #include "../lib/MQTT/src/MQTT.h"

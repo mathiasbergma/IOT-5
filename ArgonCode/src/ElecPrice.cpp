@@ -2,12 +2,10 @@
 //       THIS IS A GENERATED FILE - DO NOT EDIT       //
 /******************************************************/
 
-#line 1 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
-#include "../lib/MQTT/src/MQTT.h"
+#line 1 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
 #include "BLE_include.h"
 #include "application.h"
 #include "cost_calc.h"
-#include "mDNSResolver.h"
 #include "price_handler.h"
 #include "state_variables.h"
 #include "string.h"
@@ -15,11 +13,11 @@
 #include <fcntl.h>
 #include "../lib/Json/src/Arduino_JSON.h"
 #include "price_http_get.h"
+#include "Storage.h"
+
+
 //#define STATEDEBUG
 
-//#define USEMQTT
-
-// use rising sensor
 void setup();
 void loop();
 void init_memory();
@@ -27,7 +25,15 @@ void rotate_prices();
 void BLEOnConnectcallback(const BlePeerDevice &peer, void *context);
 void transmit_prices(int start_stop[12][2], int size);
 void check_time(void);
-#line 18 "c:/Users/mikeh/IOT_Project/Power_monitor/ArgonCode/src/ElecPrice.ino"
+#line 16 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
+#define USEMQTT
+
+#ifdef USEMQTT
+#include "../lib/MQTT/src/MQTT.h"
+#include "mDNSResolver.h"
+#endif
+
+// use rising sensor
 #define RISING_SENSOR
 
 #define KW_SENSOR_PIN D8
@@ -76,10 +82,10 @@ Timer timer(60000, check_time, true); // One-shot timer.
 void callback(char *topic, byte *payload, unsigned int length);
 // Create MQTT client
 MQTT client("192.168.110.6", PORT, 512, 30, callback);
-#endif
 
-// UDP udp;
-// mDNSResolver::Resolver resolver(udp);
+UDP udp;
+mDNSResolver::Resolver resolver(udp);
+#endif
 
 SYSTEM_THREAD(ENABLED);
 
@@ -99,8 +105,11 @@ void setup()
     Time.zone(1);
     // Time.beginDST();
 
-    //Set current hour before entering loop
+    // Set current hour before entering loop
     currentHour = Time.hour();
+
+    // Set up persistant storage
+    initStorage(&wh_today_Json, &wh_yesterday_Json);
 
 #ifdef USEMQTT
     // Resolve MQTT broker IP address
