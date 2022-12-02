@@ -1,10 +1,8 @@
 #include "../lib/Json/src/Arduino_JSON.h"
-#include "../lib/MQTT/src/MQTT.h"
 #include "BLE_include.h"
 #include "Storage.h"
 #include "application.h"
 #include "cost_calc.h"
-#include "mDNSResolver.h"
 #include "price_handler.h"
 #include "price_http_get.h"
 #include "state_variables.h"
@@ -14,6 +12,11 @@
 //#define STATEDEBUG
 
 //#define USEMQTT
+
+#ifdef USEMQTT
+#include "../lib/MQTT/src/MQTT.h"
+#include "mDNSResolver.h"
+#endif
 
 // use rising sensor
 #define RISING_SENSOR
@@ -64,10 +67,10 @@ Timer timer(60000, check_time, true); // One-shot timer.
 void callback(char *topic, byte *payload, unsigned int length);
 // Create MQTT client
 MQTT client("192.168.110.6", PORT, 512, 30, callback);
-#endif
 
-// UDP udp;
-// mDNSResolver::Resolver resolver(udp);
+UDP udp;
+mDNSResolver::Resolver resolver(udp);
+#endif
 
 SYSTEM_THREAD(ENABLED);
 
