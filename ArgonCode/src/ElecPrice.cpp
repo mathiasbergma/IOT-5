@@ -2,7 +2,7 @@
 //       THIS IS A GENERATED FILE - DO NOT EDIT       //
 /******************************************************/
 
-#line 1 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
+#line 1 "c:/Users/Anders/Documents/ParticleProjects/StorageAboutThere/Power_monitor/ArgonCode/src/ElecPrice.ino"
 #include "BLE_include.h"
 #include "application.h"
 #include "cost_calc.h"
@@ -11,12 +11,13 @@
 #include "string.h"
 #include "update_json.h"
 #include <fcntl.h>
+
 #include "../lib/Json/src/Arduino_JSON.h"
 #include "price_http_get.h"
+
 #include "Storage.h"
 
-
-//#define STATEDEBUG
+//#define USEMQTT
 
 void setup();
 void loop();
@@ -24,31 +25,34 @@ void init_memory();
 void rotate_prices();
 void BLEOnConnectcallback(const BlePeerDevice &peer, void *context);
 void transmit_prices(int start_stop[12][2], int size);
-void check_time(void);
-#line 16 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
-#define USEMQTT
-
+void timerCallback(void);
+void loadArray(int *wattHrArray, String *wattHrJson, String fileName, const char *keyString);
+#line 17 "c:/Users/Anders/Documents/ParticleProjects/StorageAboutThere/Power_monitor/ArgonCode/src/ElecPrice.ino"
 #ifdef USEMQTT
 #include "../lib/MQTT/src/MQTT.h"
 #include "mDNSResolver.h"
+#define HOST "192.168.0.103"
+#define PORT 1883
 #endif
-
-// use rising sensor
-#define RISING_SENSOR
 
 #define KW_SENSOR_PIN D8
 #define WATT_CONVERSION_CONSTANT 3600000
-#define HOST "192.168.0.103"
-#define PORT 1883
 #define PULL_TIME_1 13
 #define PULL_TIME_2 0
-
 #define MAX_TRANSMIT_BUFF 128
 #define SLEEP_DURATION 30000
 
+// Defines for storage
+#define WH_TDAY_FILE "/wattHourToday.txt"
+#define WH_YSTDAY_FILE "/wattHourYesterday.txt"
+#define LASTWRITE_FILE "/lastWrite.txt"
+#define WH_TDAY_INITSTRING "{\"WHr_today\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}"
+#define WH_YSTDAY_INITSTRING "{\"WHr_yesterday\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}"
+#define WH_TDAY_KEY "WHr_today"
+#define WH_YSTDAY_KEY "WHr_yesterday"
+
 int oneShotGuard = -1;
 int oneShotGuard2 = -1;
-int oneShotGuard3 = -1;
 int *wh_yesterday;
 int *wh_today;
 
@@ -68,14 +72,15 @@ String pricesyesterday_Json;
 String wh_today_Json;
 String wh_yesterday_Json;
 
-void timer_callback(void);                                // Timer callback function
-void init_memory(void);                                   // Initialize memory for the wh and price arrays
-void handle_sensor(void);                                 // Handles the sensor reading and calculation of power
-void check_mqtt(void);                                    // Check if MQTT is connected - Reconnect of needed
-void transmit_prices(int start_stop[12][2], int cnt);     // Transmits low price intervals to MQTT
-void myPriceHandler(const char *event, const char *data); // Handler for webhook
+void init_memory(void);                                                                // Initialize memory for the wh and price arrays
+void handle_sensor(void);                                                              // Handles the sensor reading and calculation of power
+void check_mqtt(void);                                                                 // Check if MQTT is connected - Reconnect of needed
+void transmit_prices(int start_stop[12][2], int cnt);                                  // Transmits low price intervals to MQTT
+void loadArray(int *whArray, String *whJson, String fileName, const char *propString); // Load array info from file.
+void initStorage();                                                                    // Initialize Storage files.
+void updateFiles();                                                                    // Update data in storage files.
 
-Timer timer(60000, check_time, true); // One-shot timer.
+Timer timer(20000, timerCallback, true); // One-shot timer.
 
 #ifdef USEMQTT
 // Callback function for MQTT transmission
@@ -88,6 +93,8 @@ mDNSResolver::Resolver resolver(udp);
 #endif
 
 SYSTEM_THREAD(ENABLED);
+
+// ############################# SETUP ######################################
 
 void setup()
 {
@@ -102,20 +109,14 @@ void setup()
     // Initialize memory
     init_memory();
 
-    Time.zone(1);
-    // Time.beginDST();
-
     // Set current hour before entering loop
+    Time.zone(1);
     currentHour = Time.hour();
-
-    // Set up persistant storage
-    initStorage(&wh_today_Json, &wh_yesterday_Json);
 
 #ifdef USEMQTT
     // Resolve MQTT broker IP address
     IPAddress IP = resolver.search("homeassistant.local");
     client.setBroker(IP.toString(), PORT);
-
 #endif
 
     // Subscribe to the integration response event
@@ -139,7 +140,6 @@ void setup()
 
     // Print current time
     Serial.printf("Current HH:MM: %02d:%02d\n", Time.hour(), Time.minute());
-    timer.start();
 
     Serial.printlnf("RSSI=%d", (int8_t)WiFi.RSSI());
 
@@ -152,6 +152,9 @@ void setup()
     get_data_http(Time.day());
     rotate_prices();
 
+    // Set up persistant storage
+    initStorage();
+
     if (Time.hour() >= PULL_TIME_1)
     {
         CALCULATE = false;
@@ -163,14 +166,15 @@ void setup()
         CALCULATE = true;
     }
 
-#ifdef RISING_SENSOR
-    pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);                // Setup pinmode for LDR pin
-    attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING); // Attach interrup that will be called when rising
-#else
-    pinMode(KW_SENSOR_PIN, INPUT_PULLUP); // Setup pinmode for LDR pin
-    attachInterrupt(KW_SENSOR_PIN, handle_sensor, FALLING);
-#endif
+    // Set up sensor pin and interrupt.
+    pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);
+    attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING);
+
+    // Start the timer
+    timer.start();
 }
+
+// ############################# MAIN LOOP ######################################
 
 void loop()
 {
@@ -207,26 +211,25 @@ void loop()
         TRANSMIT_PRICE = false;
     }
 
-    if (TRANSMIT_SENSOR) // Did we receive a request for updated values
+    // Sensor ISR was fired.
+    if (TRANSMIT_SENSOR)
     {
         Serial.printf("Received power/get\n");
-        // One flash from sensor equals 1 Whr - Add to total
-        wh_today[Time.hour()] += 1;
+        wh_today[Time.hour()] += 1; // One flash from sensor equals 1 Whr - Add to total
+        char buffer[255];
+        sprintf(buffer, "{\"watt\":%d}", calc_power);
+        WattCharacteristic.setValue(buffer);
+        WhrTodayCharacteristic.setValue(update_Whr_Today_JSON());
+        TRANSMIT_SENSOR = false;
+
 #ifdef USEMQTT
         char values[16];
         sprintf(values, "%d", calc_power);
         client.publish("power", values);
 #endif
-        char buffer[255];
-        sprintf(buffer, "{\"watt\":%d}", calc_power);
-        WattCharacteristic.setValue(buffer);
-
-        WhrTodayCharacteristic.setValue(update_Whr_Today_JSON());
-
-        // state = STANDBY_STATE;
-        TRANSMIT_SENSOR = false;
     }
 
+    // Check rotate flag, to see if today is now yesterday.
     if (ROTATE)
     {
         rotate_prices();
@@ -234,6 +237,7 @@ void loop()
         CALCULATE = true;
     }
 
+    // Periodic updates (on timer reset)
     if (UPDATE_WH_TODAY)
     {
 #ifdef USEMQTT
@@ -249,13 +253,14 @@ void loop()
         client.publish("watthour", buffer);
 #endif
         hourly_JSON_update();
+        updateFiles();
         UPDATE_WH_TODAY = false;
     }
 
     if (NewBLEConnection & ((millis() - last_connect) > 3000))
     {
         // send everything relavant on new connect
-        // needs a bit og delay to ensure device is ready
+        // needs a bit of delay to ensure device is ready
         update_JSON();
         char buffer[255];
         sprintf(buffer, "{\"watt\":%d}", calc_power);
@@ -273,12 +278,13 @@ void loop()
     delay(1000);
 }
 
-/** @brief Initialize memory. Function is called once at startup. Arrays are rotated afterwards at midnight
- *
+// ############################# Function implementations ######################################
+
+/** @brief Initialize memory. Function is called once at startup.
+ *         Arrays are rotated afterwards at midnight
  */
 void init_memory()
 {
-    // Serial.printf("before %lu\n", System.freeMemory());
     //  Allocate for the prices
     cost_yesterday = (double *)malloc(MAX_RANGE * sizeof(double));
     if (cost_yesterday == NULL)
@@ -324,30 +330,26 @@ void init_memory()
     memset(cost_tomorrow, 0, MAX_RANGE * sizeof(double));
     memset(wh_today, 0, MAX_RANGE * sizeof(int));
     memset(wh_yesterday, 0, MAX_RANGE * sizeof(int));
-
-    // Hent indhold af filer, så vi har gemte data i tilfælde af reboot
-    // fd_today = open("/sd/prices_today.txt", O_RDWR | O_CREAT);
 }
+
 /**
- * @brief      Rotates arrays. Decision is made based on the current time. If it is midnight, the arrays are rotated.
+ * @brief   Rotates arrays. Decision is made based on the current time.
+ *          If it is midnight, the arrays are rotated.
  */
 void rotate_prices()
 {
-    // Rotate prices so that we can use the same array for all days
     double *temp = cost_yesterday;
     cost_yesterday = cost_today;
     cost_today = cost_tomorrow;
     cost_tomorrow = temp;
-
     memset(cost_tomorrow, 0, MAX_RANGE * sizeof(double));
 
     int *temp2 = wh_yesterday;
     wh_yesterday = wh_today;
     wh_today = temp2;
     memset(wh_today, 0, MAX_RANGE * sizeof(int));
-
-    // Opdater filer med nye priser
 }
+
 /**
  * @brief    Sets a flag when a new BLE connection is established
  */
@@ -356,8 +358,10 @@ void BLEOnConnectcallback(const BlePeerDevice &peer, void *context)
     NewBLEConnection = true;
     last_connect = millis();
 }
+
 /**
- * @brief    IRQ handler for the KW sensor. This function is called every time the KW sensor detects a pulse.
+ * @brief    IRQ handler for the KW sensor.
+ *
  */
 void handle_sensor(void)
 {
@@ -420,46 +424,162 @@ void transmit_prices(int start_stop[12][2], int size)
     }
     // Publish the cheap hours to cloud
     Particle.publish("Low price hours", data, PRIVATE);
+
 #ifdef USEMQTT
     // Publish cheap hour to MQTT
     client.publish("prices", data);
     client.loop();
 #endif
 }
+
 /**
- * @brief     Checks the current time and decides if it is time to update the prices, update watt hours or rotate price and watt hour arrays.
+ * @brief Timer callback.
+ *        Sets new countdown to next quater-Hour.
+ *        Also sets flags to update the prices & watt hours or rotate price and watt hour arrays.
  */
-void check_time(void)
+void timerCallback(void)
 {
-    currentHour = Time.hour();
-    uint8_t currentMinute = Time.minute();
-    uint8_t currentSecond = Time.second();
-    uint8_t currentDay = Time.day();
-    uint countdown;
-
-    // Set new countdown to aim for xx:00:01 within a second (+1 for safe side)
-    countdown = ((60 - currentMinute) * 60000) - (currentSecond + 1);
-
-    // Start timer again with new countdown
-    timer.stop();
-    timer.changePeriod(countdown);
-    timer.start();
-
-    if ((currentHour == PULL_TIME_1) && currentDay != oneShotGuard)
+    if (Time.isValid())
     {
-        oneShotGuard = currentDay;
-        GET_DATA = true;
-    }
-    if ((currentHour == PULL_TIME_2) && currentDay != oneShotGuard2)
-    {
-        oneShotGuard2 = currentDay;
+        String timeString = Time.format(Time.now(), "%X-%j");
+        currentHour = timeString.substring(0, 2).toInt();
+        uint8_t currentMinute = timeString.substring(3, 5).toInt();
+        uint8_t currentSecond = timeString.substring(6, 8).toInt();
+        uint16_t currentDay = timeString.substring(9).toInt();
 
-        ROTATE = true;
+        // Set new countdown. Aim for next quater + 1 sec for safety.
+        uint countdown = (15 * 60000) - ((currentMinute % 15) * 60000) - (currentSecond * 1000) + 1000;
+
+        // Start timer again with new countdown
+        timer.stop();
+        timer.changePeriod(countdown);
+        timer.start();
+
+        // Check if it's time to fetch new prices.
+        if ((currentHour == PULL_TIME_1) && currentDay != oneShotGuard)
+        {
+            oneShotGuard = currentDay;
+            GET_DATA = true;
+        }
+
+        // Check if it's time to rotate arrays.
+        if ((currentHour == PULL_TIME_2) && currentDay != oneShotGuard2)
+        {
+            oneShotGuard2 = currentDay;
+            ROTATE = true;
+        }
+
+        // Check if we should update arrays. (every quater-hour)
+        if (currentMinute % 5 == 0) //(currentMinute % 15 == 0)
+        {
+            UPDATE_WH_TODAY = true;
+        }
     }
-    if (currentMinute == 0 && currentHour != oneShotGuard3)
+    else
     {
-        oneShotGuard3 = currentHour;
-        // Update the wh_today array
-        UPDATE_WH_TODAY = true;
+        // Time is not synchronized - trying again in 15 minutes
+        timer.stop();
+        timer.changePeriod(900000);
+        timer.start();
     }
+}
+
+/**
+ * @brief Initializes files, creating them if they do not yet exist.
+ *        Also updates the watt hour Jsons and int arrays.
+ */
+void initStorage()
+{
+    Serial.println("######### Initializing storage #########");
+
+    int lastWriteExist = initFile(LASTWRITE_FILE, "000");
+    int todayInit = initFile(WH_TDAY_FILE, WH_TDAY_INITSTRING);
+    int yesterdayInit = initFile(WH_YSTDAY_FILE, WH_YSTDAY_INITSTRING);
+
+    // Check if lastWrite.txt already existed
+    if (lastWriteExist > 0)
+    {
+        // lastWrite file exists. Initialize watt-hour files
+        if (todayInit > -1 && yesterdayInit > -1)
+        {
+            if (Time.isValid())
+            {
+                uint16_t dayNow = Time.format(Time.now(), "%j").toInt();
+                uint16_t savedDay = loadFile(LASTWRITE_FILE).toInt();
+                Serial.printlnf("Data last saved on day #%d", savedDay);
+                Serial.printlnf("Today is #%d", dayNow);
+
+                // Check day number, act accordingly.
+                if (dayNow == savedDay + 1)
+                {
+                    Serial.println("Watt hours last written yesterday - updating arrays.");
+                    loadArray(wh_yesterday, &wh_yesterday_Json, WH_TDAY_FILE, WH_TDAY_KEY);
+                    writeFile(WH_TDAY_FILE, wh_yesterday_Json);
+                    writeFile(WH_YSTDAY_FILE, WH_YSTDAY_INITSTRING);
+                }
+                else if (dayNow == savedDay)
+                {
+                    Serial.println("Saved watt hours are up to date - update arrays.");
+                    loadArray(wh_today, &wh_today_Json, WH_TDAY_FILE, WH_TDAY_KEY);
+                    loadArray(wh_yesterday, &wh_yesterday_Json, WH_YSTDAY_FILE, WH_YSTDAY_KEY);
+                }
+                else
+                {
+                    Serial.println("Saved watt hours out of date. Initializing arrays to 0");
+                    writeFile(WH_TDAY_FILE, WH_TDAY_INITSTRING);
+                    writeFile(WH_YSTDAY_FILE, WH_YSTDAY_INITSTRING);
+                    loadArray(wh_today, &wh_today_Json, WH_TDAY_FILE, WH_TDAY_KEY);
+                    loadArray(wh_yesterday, &wh_yesterday_Json, WH_YSTDAY_FILE, WH_YSTDAY_KEY);
+                }
+                return;
+            }
+            else
+            {
+                Serial.println("No valid time - maybe we dont have net?");
+                return;
+            }
+        }
+        else
+        {
+            Serial.println("Error initializing watt-Hour files.");
+            return;
+        }
+    }
+    else if (lastWriteExist < 0)
+        Serial.println("Error initializing lastWrite.");
+    else
+    {
+        // Files were created just now. Load initial data.
+        loadArray(wh_today, &wh_today_Json, WH_TDAY_FILE, WH_TDAY_KEY);
+        loadArray(wh_yesterday, &wh_yesterday_Json, WH_YSTDAY_FILE, WH_YSTDAY_KEY);
+    }
+}
+
+/**
+ * @brief Reads watt hour info from files, and writes it to the Jsons & int arrays.
+ *
+ * @param whArray
+ * @param whJson
+ * @param fileName
+ * @param keyString
+ */
+void loadArray(int *wattHrArray, String *wattHrJson, String fileName, const char *keyString)
+{
+    *wattHrJson = loadFile(fileName);
+    JSONVar wattHrObject = JSON.parse(*wattHrJson);
+    JSONVar wattHrArrayObject = wattHrObject[keyString];
+    for (int i = 0; i < 24; i++)
+        wattHrArray[i] = wattHrArrayObject[i];
+}
+
+/**
+ * @brief Updates the files with current info.
+ *
+ */
+void updateFiles()
+{
+    Serial.println("Updating files in storage.");
+    writeFile(WH_TDAY_FILE, wh_today_Json);
+    writeFile(WH_YSTDAY_FILE, wh_yesterday_Json);
+    writeFile(LASTWRITE_FILE, Time.format(Time.now(), "%j"));
 }
