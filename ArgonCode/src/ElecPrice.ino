@@ -12,7 +12,7 @@
 
 #include "Storage.h"
 
-//#define USEMQTT
+#define USEMQTT
 
 #ifdef USEMQTT
 #include "../lib/MQTT/src/MQTT.h"
@@ -175,6 +175,10 @@ void loop()
     if (GET_DATA)
     {
         AWAITING_DATA = true;
+        #ifndef USEMQTT
+        WiFi.on();
+        Particle.connect();
+        #endif
 
         get_data_http(Time.day() + 1);
         GET_DATA = false;
@@ -195,6 +199,10 @@ void loop()
         transmit_prices(start_stop, cnt);
         STANDBY_STATE = true;
         TRANSMIT_PRICE = false;
+        #ifndef USEMQTT
+        Particle.disconnect();
+        WiFi.off();
+        #endif
     }
 
     // Sensor ISR was fired.
@@ -226,6 +234,10 @@ void loop()
     // Periodic updates (on timer reset)
     if (UPDATE_WH_TODAY)
     {
+        #ifndef USEMQTT
+        WiFi.on();
+        Particle.connect();
+        #endif
 #ifdef USEMQTT
         char buffer[16];
         if (Time.hour() == 0)
@@ -240,6 +252,12 @@ void loop()
 #endif
         hourly_JSON_update();
         updateFiles();
+        
+        #ifndef USEMQTT
+        Particle.disconnect();
+        WiFi.off();
+        #endif 
+
         UPDATE_WH_TODAY = false;
     }
 

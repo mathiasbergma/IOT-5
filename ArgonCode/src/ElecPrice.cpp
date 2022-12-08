@@ -2,7 +2,7 @@
 //       THIS IS A GENERATED FILE - DO NOT EDIT       //
 /******************************************************/
 
-#line 1 "c:/Users/Anders/Documents/ParticleProjects/StorageAboutThere/Power_monitor/ArgonCode/src/ElecPrice.ino"
+#line 1 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
 #include "BLE_include.h"
 #include "application.h"
 #include "cost_calc.h"
@@ -17,8 +17,6 @@
 
 #include "Storage.h"
 
-//#define USEMQTT
-
 void setup();
 void loop();
 void init_memory();
@@ -27,7 +25,9 @@ void BLEOnConnectcallback(const BlePeerDevice &peer, void *context);
 void transmit_prices(int start_stop[12][2], int size);
 void timerCallback(void);
 void loadArray(int *wattHrArray, String *wattHrJson, String fileName, const char *keyString);
-#line 17 "c:/Users/Anders/Documents/ParticleProjects/StorageAboutThere/Power_monitor/ArgonCode/src/ElecPrice.ino"
+#line 15 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
+#define USEMQTT
+
 #ifdef USEMQTT
 #include "../lib/MQTT/src/MQTT.h"
 #include "mDNSResolver.h"
@@ -189,6 +189,10 @@ void loop()
     if (GET_DATA)
     {
         AWAITING_DATA = true;
+        #ifndef USEMQTT
+        WiFi.on();
+        Particle.connect();
+        #endif
 
         get_data_http(Time.day() + 1);
         GET_DATA = false;
@@ -209,6 +213,10 @@ void loop()
         transmit_prices(start_stop, cnt);
         STANDBY_STATE = true;
         TRANSMIT_PRICE = false;
+        #ifndef USEMQTT
+        Particle.disconnect();
+        WiFi.off();
+        #endif
     }
 
     // Sensor ISR was fired.
@@ -240,6 +248,10 @@ void loop()
     // Periodic updates (on timer reset)
     if (UPDATE_WH_TODAY)
     {
+        #ifndef USEMQTT
+        WiFi.on();
+        Particle.connect();
+        #endif
 #ifdef USEMQTT
         char buffer[16];
         if (Time.hour() == 0)
@@ -254,6 +266,12 @@ void loop()
 #endif
         hourly_JSON_update();
         updateFiles();
+        
+        #ifndef USEMQTT
+        Particle.disconnect();
+        WiFi.off();
+        #endif 
+
         UPDATE_WH_TODAY = false;
     }
 
