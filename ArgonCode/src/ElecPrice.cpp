@@ -2,7 +2,7 @@
 //       THIS IS A GENERATED FILE - DO NOT EDIT       //
 /******************************************************/
 
-#line 1 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
+#line 1 "c:/Users/Anders/Documents/ParticleProjects/IOT-RAPPORT-KODE/Power_monitor/ArgonCode/src/ElecPrice.ino"
 #include "BLE_include.h"
 #include "application.h"
 #include "cost_calc.h"
@@ -17,6 +17,8 @@
 
 #include "Storage.h"
 
+// #define USEMQTT
+
 void setup();
 void loop();
 void init_memory();
@@ -25,9 +27,7 @@ void BLEOnConnectcallback(const BlePeerDevice &peer, void *context);
 void transmit_prices(int start_stop[12][2], int size);
 void timerCallback(void);
 void loadArray(int *wattHrArray, String *wattHrJson, String fileName, const char *keyString);
-#line 15 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
-#define USEMQTT
-
+#line 17 "c:/Users/Anders/Documents/ParticleProjects/IOT-RAPPORT-KODE/Power_monitor/ArgonCode/src/ElecPrice.ino"
 #ifdef USEMQTT
 #include "../lib/MQTT/src/MQTT.h"
 #include "mDNSResolver.h"
@@ -100,6 +100,7 @@ void setup()
 {
     STARTUP = true;
 
+    // Wait for connection to Particle - this syncs the clock.
     waitUntil(Particle.connected);
     Particle.unsubscribe();
 
@@ -113,16 +114,14 @@ void setup()
     Time.zone(1);
     currentHour = Time.hour();
 
+    // Subscribe to the integration response event
+    // Particle.subscribe("prices", myHandler);
+
 #ifdef USEMQTT
     // Resolve MQTT broker IP address
     IPAddress IP = resolver.search("homeassistant.local");
     client.setBroker(IP.toString(), PORT);
-#endif
 
-    // Subscribe to the integration response event
-    Particle.subscribe("prices", myHandler);
-
-#ifdef USEMQTT
     // connect to the mqtt broker(unique id by Time.now())
     Serial.printf("Return value: %d", client.connect("client_" + String(Time.now()), "mqtt", "mqtt"));
 
@@ -141,6 +140,7 @@ void setup()
     // Print current time
     Serial.printf("Current HH:MM: %02d:%02d\n", Time.hour(), Time.minute());
 
+    // Print wifi signal strength.
     Serial.printlnf("RSSI=%d", (int8_t)WiFi.RSSI());
 
     // Fill price arrays with data from http get
@@ -170,7 +170,11 @@ void setup()
     pinMode(KW_SENSOR_PIN, INPUT_PULLDOWN);
     attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING);
 
-    // Start the timer
+    // Turn off wifi to save power.
+    Particle.disconnect();
+    WiFi.off();
+
+    // Start the timer.
     timer.start();
 }
 
@@ -185,16 +189,20 @@ void loop()
     check_mqtt();
 #endif
 
-    // Is it time to update the prices or has it been requested?
+    // Check if we wish to fetch prices.
     if (GET_DATA)
     {
         AWAITING_DATA = true;
-        #ifndef USEMQTT
+#ifndef USEMQTT
         WiFi.on();
         Particle.connect();
-        #endif
-
+#endif
         get_data_http(Time.day() + 1);
+
+#ifndef USEMQTT
+        Particle.disconnect();
+        WiFi.off();
+#endif
         GET_DATA = false;
     }
 
@@ -208,21 +216,25 @@ void loop()
         CALCULATE = false;
     }
 
+    // Check if prices should be sent (MQTT/Particle cloud)
     if (TRANSMIT_PRICE)
     {
+#ifndef USEMQTT
+        WiFi.on();
+        Particle.connect();
+#endif
         transmit_prices(start_stop, cnt);
         STANDBY_STATE = true;
         TRANSMIT_PRICE = false;
-        #ifndef USEMQTT
+#ifndef USEMQTT
         Particle.disconnect();
         WiFi.off();
-        #endif
+#endif
     }
 
     // Sensor ISR was fired.
     if (TRANSMIT_SENSOR)
     {
-        Serial.printf("Received power/get\n");
         wh_today[Time.hour()] += 1; // One flash from sensor equals 1 Whr - Add to total
         char buffer[255];
         sprintf(buffer, "{\"watt\":%d}", calc_power);
@@ -248,10 +260,6 @@ void loop()
     // Periodic updates (on timer reset)
     if (UPDATE_WH_TODAY)
     {
-        #ifndef USEMQTT
-        WiFi.on();
-        Particle.connect();
-        #endif
 #ifdef USEMQTT
         char buffer[16];
         if (Time.hour() == 0)
@@ -266,12 +274,6 @@ void loop()
 #endif
         hourly_JSON_update();
         updateFiles();
-        
-        #ifndef USEMQTT
-        Particle.disconnect();
-        WiFi.off();
-        #endif 
-
         UPDATE_WH_TODAY = false;
     }
 
@@ -433,15 +435,15 @@ void check_mqtt(void)
  */
 void transmit_prices(int start_stop[12][2], int size)
 {
-    Serial.printf("In work\n");
     // Do some meaningfull work with the collected data
     String data = "Cheap(ish) hours of the day: ";
     for (int z = 0; z < size; z++)
     {
         data += String::format("%02d to %02d, ", start_stop[z][0], start_stop[z][1]);
     }
+
     // Publish the cheap hours to cloud
-    Particle.publish("Low price hours", data, PRIVATE);
+    // Particle.publish("Low price hours", data, PRIVATE);
 
 #ifdef USEMQTT
     // Publish cheap hour to MQTT
@@ -457,48 +459,39 @@ void transmit_prices(int start_stop[12][2], int size)
  */
 void timerCallback(void)
 {
-    if (Time.isValid())
+
+    String timeString = Time.format(Time.now(), "%X-%j");
+    currentHour = timeString.substring(0, 2).toInt();
+    uint8_t currentMinute = timeString.substring(3, 5).toInt();
+    uint8_t currentSecond = timeString.substring(6, 8).toInt();
+    uint16_t currentDay = timeString.substring(9).toInt();
+
+    // Set new countdown. Aim for next quater + 1 sec for safety.
+    uint countdown = (15 * 60000) - ((currentMinute % 15) * 60000) - (currentSecond * 1000) + 1000;
+
+    // Start timer again with new countdown
+    timer.stop();
+    timer.changePeriod(countdown);
+    timer.start();
+
+    // Check if it's time to fetch new prices.
+    if ((currentHour == PULL_TIME_1) && currentDay != oneShotGuard)
     {
-        String timeString = Time.format(Time.now(), "%X-%j");
-        currentHour = timeString.substring(0, 2).toInt();
-        uint8_t currentMinute = timeString.substring(3, 5).toInt();
-        uint8_t currentSecond = timeString.substring(6, 8).toInt();
-        uint16_t currentDay = timeString.substring(9).toInt();
-
-        // Set new countdown. Aim for next quater + 1 sec for safety.
-        uint countdown = (15 * 60000) - ((currentMinute % 15) * 60000) - (currentSecond * 1000) + 1000;
-
-        // Start timer again with new countdown
-        timer.stop();
-        timer.changePeriod(countdown);
-        timer.start();
-
-        // Check if it's time to fetch new prices.
-        if ((currentHour == PULL_TIME_1) && currentDay != oneShotGuard)
-        {
-            oneShotGuard = currentDay;
-            GET_DATA = true;
-        }
-
-        // Check if it's time to rotate arrays.
-        if ((currentHour == PULL_TIME_2) && currentDay != oneShotGuard2)
-        {
-            oneShotGuard2 = currentDay;
-            ROTATE = true;
-        }
-
-        // Check if we should update arrays. (every quater-hour)
-        if (currentMinute % 5 == 0) //(currentMinute % 15 == 0)
-        {
-            UPDATE_WH_TODAY = true;
-        }
+        oneShotGuard = currentDay;
+        GET_DATA = true;
     }
-    else
+
+    // Check if it's time to rotate arrays.
+    if ((currentHour == PULL_TIME_2) && currentDay != oneShotGuard2)
     {
-        // Time is not synchronized - trying again in 15 minutes
-        timer.stop();
-        timer.changePeriod(900000);
-        timer.start();
+        oneShotGuard2 = currentDay;
+        ROTATE = true;
+    }
+
+    // Check if we should update arrays. (every quater-hour)
+    if (currentMinute % 5 == 0) //(currentMinute % 15 == 0)
+    {
+        UPDATE_WH_TODAY = true;
     }
 }
 
