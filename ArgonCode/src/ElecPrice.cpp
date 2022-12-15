@@ -2,7 +2,7 @@
 //       THIS IS A GENERATED FILE - DO NOT EDIT       //
 /******************************************************/
 
-#line 1 "c:/Users/Anders/Documents/ParticleProjects/IOT-RAPPORT-KODE/Power_monitor/ArgonCode/src/ElecPrice.ino"
+#line 1 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
 #include "BLE_include.h"
 #include "application.h"
 #include "cost_calc.h"
@@ -17,8 +17,6 @@
 
 #include "Storage.h"
 
-// #define USEMQTT
-
 void setup();
 void loop();
 void init_memory();
@@ -27,7 +25,9 @@ void BLEOnConnectcallback(const BlePeerDevice &peer, void *context);
 void transmit_prices(int start_stop[12][2], int size);
 void timerCallback(void);
 void loadArray(int *wattHrArray, String *wattHrJson, String fileName, const char *keyString);
-#line 17 "c:/Users/Anders/Documents/ParticleProjects/IOT-RAPPORT-KODE/Power_monitor/ArgonCode/src/ElecPrice.ino"
+#line 15 "c:/Users/mathi/Desktop/IOT/ElecPrice/ArgonCode/src/ElecPrice.ino"
+#define USEMQTT
+
 #ifdef USEMQTT
 #include "../lib/MQTT/src/MQTT.h"
 #include "mDNSResolver.h"
@@ -171,8 +171,10 @@ void setup()
     attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING);
 
     // Turn off wifi to save power.
-    Particle.disconnect();
-    WiFi.off();
+#ifndef USEMQTT
+        Particle.disconnect();
+        WiFi.off();
+#endif
 
     // Start the timer.
     timer.start();
@@ -235,7 +237,6 @@ void loop()
     // Sensor ISR was fired.
     if (TRANSMIT_SENSOR)
     {
-        wh_today[Time.hour()] += 1; // One flash from sensor equals 1 Whr - Add to total
         char buffer[255];
         sprintf(buffer, "{\"watt\":%d}", calc_power);
         WattCharacteristic.setValue(buffer);
@@ -262,15 +263,27 @@ void loop()
     {
 #ifdef USEMQTT
         char buffer[16];
+        double total_kwh = 0;
+        char kwh_buffer[16];
         if (Time.hour() == 0)
         {
             sprintf(buffer, "%d", wh_yesterday[23]);
+            for (int i = 0; i < 24; i++)
+            {
+                total_kwh += wh_yesterday[i];
+            }
         }
         else
         {
             sprintf(buffer, "%d", wh_today[Time.hour() - 1]);
+            for (int i = 0; i < Time.hour(); i++)
+            {
+                total_kwh += wh_today[i];
+            }
         }
+        sprintf(kwh_buffer, "%.1f", total_kwh / 1000);
         client.publish("watthour", buffer);
+        client.publish("total_kwh", kwh_buffer);
 #endif
         hourly_JSON_update();
         updateFiles();

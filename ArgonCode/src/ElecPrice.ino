@@ -12,7 +12,7 @@
 
 #include "Storage.h"
 
-// #define USEMQTT
+#define USEMQTT
 
 #ifdef USEMQTT
 #include "../lib/MQTT/src/MQTT.h"
@@ -157,8 +157,10 @@ void setup()
     attachInterrupt(KW_SENSOR_PIN, handle_sensor, RISING);
 
     // Turn off wifi to save power.
-    Particle.disconnect();
-    WiFi.off();
+#ifndef USEMQTT
+        Particle.disconnect();
+        WiFi.off();
+#endif
 
     // Start the timer.
     timer.start();
@@ -221,7 +223,6 @@ void loop()
     // Sensor ISR was fired.
     if (TRANSMIT_SENSOR)
     {
-        wh_today[Time.hour()] += 1; // One flash from sensor equals 1 Whr - Add to total
         char buffer[255];
         sprintf(buffer, "{\"watt\":%d}", calc_power);
         WattCharacteristic.setValue(buffer);
@@ -248,15 +249,27 @@ void loop()
     {
 #ifdef USEMQTT
         char buffer[16];
+        double total_kwh = 0;
+        char kwh_buffer[16];
         if (Time.hour() == 0)
         {
             sprintf(buffer, "%d", wh_yesterday[23]);
+            for (int i = 0; i < 24; i++)
+            {
+                total_kwh += wh_yesterday[i];
+            }
         }
         else
         {
             sprintf(buffer, "%d", wh_today[Time.hour() - 1]);
+            for (int i = 0; i < Time.hour(); i++)
+            {
+                total_kwh += wh_today[i];
+            }
         }
+        sprintf(kwh_buffer, "%.1f", total_kwh / 1000);
         client.publish("watthour", buffer);
+        client.publish("total_kwh", kwh_buffer);
 #endif
         hourly_JSON_update();
         updateFiles();
