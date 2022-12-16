@@ -40,6 +40,6 @@ This project is intented to work with a Particle Argon (Responsible for getting 
 
 If an ESP32 is not awailable, the Argon code can be modified to use MQTT instead. This is done by uncommenting USEMQTT
 
-´´´ C 
+``` C 
 // #define USEMQTT 
-´´´
+```
