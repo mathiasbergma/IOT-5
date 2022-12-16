@@ -17,7 +17,7 @@
 #ifdef USEMQTT
 #include "../lib/MQTT/src/MQTT.h"
 #include "mDNSResolver.h"
-#define HOST "192.168.0.103"
+#define HOST "homeassistant.local"
 #define PORT 1883
 #endif
 
@@ -72,7 +72,7 @@ Timer timer(20000, timerCallback, true); // One-shot timer.
 // Callback function for MQTT transmission
 void callback(char *topic, byte *payload, unsigned int length);
 // Create MQTT client
-MQTT client("192.168.110.6", PORT, 512, 30, callback);
+MQTT client("0.0.0.0", PORT, 512, 30, callback);
 
 UDP udp;
 mDNSResolver::Resolver resolver(udp);
@@ -105,7 +105,7 @@ void setup()
 
 #ifdef USEMQTT
     // Resolve MQTT broker IP address
-    IPAddress IP = resolver.search("homeassistant.local");
+    IPAddress IP = resolver.search(HOST);
     client.setBroker(IP.toString(), PORT);
 
     // connect to the mqtt broker(unique id by Time.now())
