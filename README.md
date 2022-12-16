@@ -37,5 +37,9 @@ In Particle Webhook setup, use the following response template to extract the da
 
 
 This project is intented to work with a Particle Argon (Responsible for getting electricity prices and monitoring power consumption) as well as an ESP32 with a tft-display.
+
 If an ESP32 is not awailable, the Argon code can be modified to use MQTT instead. This is done by uncommenting USEMQTT
-´´´ // #define USEMQTT ´´´
+
+´´´ C 
+// #define USEMQTT 
+´´´
