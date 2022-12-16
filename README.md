@@ -14,7 +14,7 @@
 ***Sensors***   
   - LDR or light Sensitive Diode
   
-  ![alt text](https://github.com/mathiasbergma/Power_monitor/blob/master/Schematic_Light_Sensor.jpg
+  ![alt text](https://github.com/mathiasbergma/Power_monitor/blob/master/Schematic_Light_sensor.jpg
    
 ***Supply***   
   - 5V Power supply   
