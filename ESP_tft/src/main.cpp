@@ -142,19 +142,34 @@ void loop()
 
     double DKK_calc[24];
     double Dkktotalsum = 0.0;
+    double KWhrtotalsum = 0.0;
     for (int i = 0; i < 24; i++)
     {
       double dkk= (Whr_pointer[i] / 1000.0) * Price_pointer[i];
       DKK_calc[i] = dkk;
       Dkktotalsum += dkk/1000.0;
+      KWhrtotalsum += (Whr_pointer[i]/1000.0);
     }
 
+    //Print the totals
+    tft.drawString("cost:", radius*2+5, 5, 4);
     char pricebuf[35];
     sprintf(pricebuf, "   %1.2f", Dkktotalsum);
-    //tft.drawString(pricebuf, radius*4, 5, 6);
-    tft.drawRightString(pricebuf,radius*6, 5,6);
-    tft.drawString("kr.",radius*6,5,4);
-    tft.drawString("cost:", radius*2+10, 5, 4);
+    tft.drawRightString(pricebuf,radius*5, 5,4);
+    tft.drawString(" kr.",radius*5,10,2);
+
+    tft.drawString("KWhr:", radius*2+5, 30, 4);
+    char KWhrbuf[35];
+    sprintf(KWhrbuf, "   %1.2f", KWhrtotalsum);
+    tft.drawRightString(KWhrbuf,radius*5, 30,4);
+    tft.drawString(" KWhr",radius*5,35,2);
+
+    tft.drawString("Avg Price:", radius*2+5, 55, 4);
+    char Avg[35];
+    sprintf(Avg, "   %1.2f", Dkktotalsum/KWhrtotalsum);
+    tft.drawRightString(Avg,radius*5, 55,4);
+    tft.drawString(" Kr/KWhr",radius*5,60,2);    
+
 
     // graph on top
     int originX = 5;
@@ -221,6 +236,9 @@ void graph(int originX, int originY, double values[24], int sizeX, int sizeY, ch
       minvalue = values[i];
       minpos = i;
     }
+  }
+  if(maxpos == minpos){
+    minvalue == 0;
   }
   int numberOfMarks = 24;
   int boxSize = (sizeX / numberOfMarks);
