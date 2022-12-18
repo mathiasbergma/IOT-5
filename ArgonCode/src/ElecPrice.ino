@@ -19,6 +19,8 @@
 #include "mDNSResolver.h"
 #define HOST "homeassistant.local"
 #define PORT 1883
+#define MQTT_USERNAME "mqtt"
+#define MQTT_PASSWORD "mqtt"
 #endif
 
 #define KW_SENSOR_PIN D8
@@ -109,7 +111,7 @@ void setup()
     client.setBroker(IP.toString(), PORT);
 
     // connect to the mqtt broker(unique id by Time.now())
-    Serial.printf("Return value: %d", client.connect("client_" + String(Time.now()), "mqtt", "mqtt"));
+    Serial.printf("Return value: %d", client.connect("client_" + String(Time.now()), MQTT_USERNAME, MQTT_PASSWORD));
 
     // publish/subscribe
     if (client.isConnected())
@@ -134,9 +136,13 @@ void setup()
     get_data_http(Time.day() - 1);
     rotate_prices();
 
+    delay(100); // Ensure next call is not rejected by API
+
     Serial.printf("Getting price data for today\n");
     get_data_http(Time.day());
     rotate_prices();
+
+    oneShotGuard2 = Time.format(Time.now(), "%H").toInt();
 
     // Set up persistant storage
     initStorage();
@@ -488,7 +494,7 @@ void timerCallback(void)
     }
 
     // Check if we should update arrays. (every quater-hour)
-    if (currentMinute % 5 == 0) //(currentMinute % 15 == 0)
+    if (currentMinute % 15 == 0) //(currentMinute % 15 == 0)
     {
         UPDATE_WH_TODAY = true;
     }
