@@ -136,9 +136,13 @@ void setup()
     get_data_http(Time.day() - 1);
     rotate_prices();
 
+    delay(100); // Ensure next call is not rejected by API
+
     Serial.printf("Getting price data for today\n");
     get_data_http(Time.day());
     rotate_prices();
+
+    oneShotGuard2 = Time.format(Time.now(), "%H").toInt();
 
     // Set up persistant storage
     initStorage();
@@ -369,7 +373,6 @@ void rotate_prices()
     wh_yesterday = wh_today;
     wh_today = temp2;
     memset(wh_today, 0, MAX_RANGE * sizeof(int));
-    CALCULATE = true;
 }
 
 /**
@@ -491,7 +494,7 @@ void timerCallback(void)
     }
 
     // Check if we should update arrays. (every quater-hour)
-    if (currentMinute % 5 == 0) //(currentMinute % 15 == 0)
+    if (currentMinute % 15 == 0) //(currentMinute % 15 == 0)
     {
         UPDATE_WH_TODAY = true;
     }
