@@ -19,6 +19,8 @@
 #include "mDNSResolver.h"
 #define HOST "homeassistant.local"
 #define PORT 1883
+#define MQTT_USERNAME "mqtt"
+#define MQTT_PASSWORD "mqtt"
 #endif
 
 #define KW_SENSOR_PIN D8
@@ -109,7 +111,7 @@ void setup()
     client.setBroker(IP.toString(), PORT);
 
     // connect to the mqtt broker(unique id by Time.now())
-    Serial.printf("Return value: %d", client.connect("client_" + String(Time.now()), "mqtt", "mqtt"));
+    Serial.printf("Return value: %d", client.connect("client_" + String(Time.now()), MQTT_USERNAME, MQTT_PASSWORD));
 
     // publish/subscribe
     if (client.isConnected())
@@ -367,6 +369,7 @@ void rotate_prices()
     wh_yesterday = wh_today;
     wh_today = temp2;
     memset(wh_today, 0, MAX_RANGE * sizeof(int));
+    CALCULATE = true;
 }
 
 /**
