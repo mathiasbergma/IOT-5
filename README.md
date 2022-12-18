@@ -6,7 +6,7 @@
   2. A near realtime measurement of total power consumption, at the installed site, should be made available to the user.
   3. Current consumption in watt, historic consumption (kWHr) and accumulated price for the current day, should be presented on a display.
   4. Hourly prices for the next day should be fetched and forwarded to the display module.
-  5. “Transport priser” must be taken into account for the given areas provider, in the form of variables that can
+  5. Transport prices must be taken into account for the given area provider, in the form of variables that can added to the cost
 
 ### Hardware   
 ***Processor***   
