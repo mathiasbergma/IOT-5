@@ -5,6 +5,12 @@
   - The device should be able to access energidataservice to ascertain the electricity prices for the day  
   - The hours of the day where prices are below a predetermined relative threshold should be made available to the user  
   - A near realtime measurement of total power consumption, at the installed site, should be made available to the user   
+  
+  1. The device should be able to access energidataservice.dk, to ascertain the electricity prices for the day.
+  2. A near realtime measurement of total power consumption, at the installed site, should be made available to the user.
+  3. Current consumption in watt, historic consumption (kWHr) and accumulated price for the current day, should be presented on a display.
+  4. Hourly prices for the next day should be fetched and forwarded to the display module.
+  5. “Transport priser” must be taken into account for the given areas provider, in the form of variables that can
 
 ### Hardware   
 ***Processor***   
